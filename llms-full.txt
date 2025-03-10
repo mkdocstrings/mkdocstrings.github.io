@@ -1539,7 +1539,7 @@ Classes:
 - **`MkdocstringsExtension`** – Our Markdown extension.
 - **`MkdocstringsInnerExtension`** – Extension that should always be added to Markdown sub-documents that handlers request (and only them).
 - **`MkdocstringsPlugin`** – An mkdocs plugin.
-- **`ParagraphStrippingTreeprocessor`** – Unwraps the element around the whole output.
+- **`ParagraphStrippingTreeprocessor`** – Unwraps the <p> element around the whole output.
 - **`PluginConfig`** – The configuration options of mkdocstrings, written in mkdocs.yml.
 - **`TemplateLogger`** – A wrapper class to allow logging in templates.
 - **`ThemeNotSupported`** – An exception raised to tell a theme is not supported.
@@ -1741,6 +1741,7 @@ Methods:
 - **`get_templates_dir`** – Return the path to the handler's templates directory.
 - **`load_inventory`** – Yield items and their URLs from an inventory file streamed from in_file.
 - **`render`** – Render a template using provided data and configuration options.
+- **`render_backlinks`** – Render backlinks.
 - **`teardown`** – Teardown the handler.
 - **`update_env`** – Update the Jinja environment.
 
@@ -1944,7 +1945,7 @@ Parameters:
 
 - #### **`strip_paragraph`**
 
-  (`bool`, default: `False` ) – Whether to exclude the tag from around the whole output.
+  (`bool`, default: `False` ) – Whether to exclude the <p> tag from around the whole output.
 
 Returns:
 
@@ -2164,6 +2165,17 @@ Parameters:
 Returns:
 
 - `str` – The rendered template as HTML.
+
+### render_backlinks
+
+```python
+render_backlinks(
+    backlinks: Mapping[str, Iterable[Backlink]],
+) -> str
+
+```
+
+Render backlinks.
 
 ### teardown
 
@@ -3104,7 +3116,6 @@ Methods:
 
 - **`get_handler`** – Get a handler by its name. See mkdocstrings.Handlers.get_handler.
 - **`on_config`** – Instantiate our Markdown extension.
-- **`on_env`** – Extra actions that need to happen after all Markdown rendering and before HTML rendering.
 - **`on_post_build`** – Teardown the handlers.
 
 Attributes:
@@ -3112,6 +3123,7 @@ Attributes:
 - **`css_filename`** (`str`) – The path of the CSS file to write in the site directory.
 - **`handlers`** (`Handlers`) – Get the instance of mkdocstrings.Handlers for this plugin/build.
 - **`inventory_enabled`** (`bool`) – Tell if the inventory is enabled or not.
+- **`on_env`** – Extra actions that need to happen after all Markdown-to-HTML page rendering.
 - **`plugin_enabled`** (`bool`) – Tell if the plugin is enabled or not.
 
 ### css_filename
@@ -3152,6 +3164,26 @@ Tell if the inventory is enabled or not.
 Returns:
 
 - `bool` – Whether the inventory is enabled.
+
+### on_env
+
+```python
+on_env = CombinedEvent(
+    _on_env_load_inventories,
+    _on_env_add_css,
+    _on_env_write_inventory,
+    _on_env_apply_backlinks,
+)
+
+```
+
+Extra actions that need to happen after all Markdown-to-HTML page rendering.
+
+Hook for the [`on_env` event](https://www.mkdocs.org/user-guide/plugins/#on_env).
+
+- Gather results from background inventory download tasks.
+- Write mkdocstrings' extra files (CSS, inventory) into the site directory.
+- Apply backlinks to the HTML output of each page.
 
 ### plugin_enabled
 
@@ -3208,25 +3240,6 @@ Returns:
 
 - `MkDocsConfig | None` – The modified config.
 
-### on_env
-
-```python
-on_env(
-    env: Environment,
-    config: MkDocsConfig,
-    *args: Any,
-    **kwargs: Any,
-) -> None
-
-```
-
-Extra actions that need to happen after all Markdown rendering and before HTML rendering.
-
-Hook for the [`on_env` event](https://www.mkdocs.org/user-guide/plugins/#on_env).
-
-- Write mkdocstrings' extra files into the site dir.
-- Gather results from background inventory download tasks.
-
 ### on_post_build
 
 ```python
@@ -3254,9 +3267,7 @@ Parameters:
 
 Bases: `Treeprocessor`
 
-Unwraps the
-
-element around the whole output.
+Unwraps the `<p>` element around the whole output.
 
 Methods:
 
