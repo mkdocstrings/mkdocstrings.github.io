@@ -2872,7 +2872,23 @@ Returns:
 ### parse_sphinx
 
 ```python
-parse_sphinx(line: str) -> InventoryItem
+parse_sphinx(
+    line: str, *, return_none: Literal[False]
+) -> InventoryItem
+
+```
+
+```python
+parse_sphinx(
+    line: str, *, return_none: Literal[True]
+) -> InventoryItem | None
+
+```
+
+```python
+parse_sphinx(
+    line: str, *, return_none: bool = False
+) -> InventoryItem | None
 
 ```
 
