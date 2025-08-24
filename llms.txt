@@ -5,11 +5,11 @@
 ## Usage
 
 - [Overview](https://mkdocstrings.github.io/index.md)
-- [Recipes](https://mkdocstrings.github.io/recipes/index.md)
-- [Troubleshooting](https://mkdocstrings.github.io/troubleshooting/index.md)
 - [Usage](https://mkdocstrings.github.io/usage/index.md)
 - [Handlers](https://mkdocstrings.github.io/usage/handlers/index.md)
 - [Theming](https://mkdocstrings.github.io/usage/theming/index.md)
+- [Recipes](https://mkdocstrings.github.io/recipes/index.md)
+- [Troubleshooting](https://mkdocstrings.github.io/troubleshooting/index.md)
 
 ## API
 

@@ -11,7 +11,6 @@ To render code blocks in admonitions, you need to add the `pymdownx.superfences`
     ```bash
     echo "some code"
     ```
-
 ````
 
 mkdocs.yml
@@ -21,7 +20,6 @@ markdown_extensions:
 - admonition
 - codehilite
 - pymdownx.superfences
-
 ```
 
 For code blocks in docstrings, make sure to escape newlines (`\n` -> `\\n`), or prefix the entire docstring with 'r' to make it a raw-docstring: `r"""`. Indeed, docstrings are still strings and therefore subject to how Python parses strings.
@@ -99,7 +97,6 @@ function setID(){
     }
 }
 setID();
-
 ```
 
 This code will correctly reset the IDs for tabs on a same page.
@@ -145,7 +142,6 @@ def math_function(x, y):
     \,d\xi
     ```
     """
-
 ````
 
 ### My docstrings in comments (`#:`) are not picked up
@@ -161,7 +157,6 @@ import enum
 class MyEnum(enum.Enum):
     v1 = 1  #: The first choice.
     v2 = 2  #: The second choice.
-
 ```
 
 You can use:
@@ -176,7 +171,6 @@ class MyEnum(enum.Enum):
 
     v2 = 2
     """The second choice."""
-
 ```
 
 Or:
@@ -195,7 +189,6 @@ class MyEnum(enum.Enum):
 
     v1 = 1
     v2 = 2
-
 ```
 
 ### My wrapped function shows documentation/code for its wrapper instead of its own
@@ -222,7 +215,6 @@ def my_decorator(function):
 def my_function(*args, **kwargs):
     """The function docs."""
     print(*args, **kwargs)
-
 ```
 
 ### Footnotes do not render
@@ -248,7 +240,6 @@ def my_function():
     [^3]: Some text.
     [^4]: Some text.
     """
-
 ```
 
 Here only the fourth footnote will work, because it is the only one that appear in the same section as its reference. To fix this, make sure all footnotes appear in the same section as their references:
@@ -275,7 +266,6 @@ def my_function():
 
     [^4]: Some text.
     """
-
 ```
 
 ### Submodules are not rendered
@@ -291,5 +281,4 @@ plugins:
       python:
         options:
           show_submodules: true
-
 ```

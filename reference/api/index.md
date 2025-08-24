@@ -51,7 +51,6 @@ Attributes:
 
 ```python
 CollectorItem = Any
-
 ```
 
 The type of the item returned by the `collect` method of a handler.
@@ -60,7 +59,6 @@ The type of the item returned by the `collect` method of a handler.
 
 ```python
 HandlerConfig = Any
-
 ```
 
 The type of the configuration of a handler.
@@ -69,7 +67,6 @@ The type of the configuration of a handler.
 
 ```python
 HandlerOptions = Any
-
 ```
 
 The type of the options passed to a handler.
@@ -78,7 +75,6 @@ The type of the options passed to a handler.
 
 ```python
 TEMPLATES_DIRS: Sequence[Path] = tuple(__path__)
-
 ```
 
 The directories where the handler templates are located.
@@ -92,7 +88,6 @@ AutoDocProcessor(
     handlers: Handlers,
     autorefs: AutorefsPlugin,
 )
-
 ```
 
 Bases: `BlockProcessor`
@@ -131,7 +126,6 @@ Attributes:
 
 ```python
 md = md
-
 ```
 
 The Markdown instance.
@@ -143,7 +137,6 @@ regex = compile(
     "^(?P<heading>#{1,6} *|)::: ?(?P<name>.+?) *$",
     flags=MULTILINE,
 )
-
 ```
 
 The regular expression to match our autodoc instructions.
@@ -152,7 +145,6 @@ The regular expression to match our autodoc instructions.
 
 ```python
 run(parent: Element, blocks: MutableSequence[str]) -> None
-
 ```
 
 Run code on the matched blocks.
@@ -173,7 +165,6 @@ Parameters:
 
 ```python
 test(parent: Element, block: str) -> bool
-
 ```
 
 Match our autodoc instructions.
@@ -196,7 +187,6 @@ Returns:
 
 ```python
 BaseHandler(*args: Any, **kwargs: Any)
-
 ```
 
 The base handler class.
@@ -253,7 +243,6 @@ Attributes:
 
 ```python
 custom_templates = custom_templates
-
 ```
 
 The path to custom templates.
@@ -262,7 +251,6 @@ The path to custom templates.
 
 ```python
 domain: str = ''
-
 ```
 
 The handler's domain, used to register objects in the inventory, for example "py".
@@ -271,7 +259,6 @@ The handler's domain, used to register objects in the inventory, for example "py
 
 ```python
 enable_inventory: bool = False
-
 ```
 
 Whether the inventory creation is enabled.
@@ -284,7 +271,6 @@ env = Environment(
     loader=FileSystemLoader(paths),
     auto_reload=False,
 )
-
 ```
 
 The Jinja environment.
@@ -293,7 +279,6 @@ The Jinja environment.
 
 ```python
 extra_css: str = ''
-
 ```
 
 Extra CSS.
@@ -302,7 +287,6 @@ Extra CSS.
 
 ```python
 fallback_config: dict = {}
-
 ```
 
 Fallback configuration when searching anchors for identifiers.
@@ -311,7 +295,6 @@ Fallback configuration when searching anchors for identifiers.
 
 ```python
 fallback_theme: str = ''
-
 ```
 
 Fallback theme to use when a template isn't found in the configured theme.
@@ -320,7 +303,6 @@ Fallback theme to use when a template isn't found in the configured theme.
 
 ```python
 md: Markdown
-
 ```
 
 The Markdown instance.
@@ -333,7 +315,6 @@ Raises:
 
 ```python
 mdx = mdx
-
 ```
 
 The Markdown extensions to use.
@@ -342,7 +323,6 @@ The Markdown extensions to use.
 
 ```python
 mdx_config = mdx_config
-
 ```
 
 The configuration for the Markdown extensions.
@@ -351,7 +331,6 @@ The configuration for the Markdown extensions.
 
 ```python
 name: str = ''
-
 ```
 
 The handler's name, for example "python".
@@ -360,7 +339,6 @@ The handler's name, for example "python".
 
 ```python
 outer_layer: bool
-
 ```
 
 Whether we're in the outer Markdown conversion layer.
@@ -369,7 +347,6 @@ Whether we're in the outer Markdown conversion layer.
 
 ```python
 theme = theme
-
 ```
 
 The selected theme.
@@ -380,7 +357,6 @@ The selected theme.
 collect(
     identifier: str, options: HandlerOptions
 ) -> CollectorItem
-
 ```
 
 Collect data given an identifier and user configuration.
@@ -412,7 +388,6 @@ do_convert_markdown(
     strip_paragraph: bool = False,
     autoref_hook: AutorefsHookInterface | None = None,
 ) -> Markup
-
 ```
 
 Render Markdown text; for use inside templates.
@@ -452,7 +427,6 @@ do_heading(
     skip_inventory: bool = False,
     **attributes: str,
 ) -> Markup
-
 ```
 
 Render an HTML heading and register it for the table of contents. For use inside templates.
@@ -495,7 +469,6 @@ Returns:
 
 ```python
 get_aliases(identifier: str) -> tuple[str, ...]
-
 ```
 
 Return the possible aliases for a given identifier.
@@ -514,7 +487,6 @@ Returns:
 
 ```python
 get_extended_templates_dirs(handler: str) -> list[Path]
-
 ```
 
 Load template extensions for the given handler, return their templates directories.
@@ -533,7 +505,6 @@ Returns:
 
 ```python
 get_headings() -> Sequence[Element]
-
 ```
 
 Return and clear the headings gathered so far.
@@ -546,7 +517,6 @@ Returns:
 
 ```python
 get_inventory_urls() -> list[tuple[str, dict[str, Any]]]
-
 ```
 
 Return the URLs (and configuration options) of the inventory files to download.
@@ -557,7 +527,6 @@ Return the URLs (and configuration options) of the inventory files to download.
 get_options(
     local_options: Mapping[str, Any],
 ) -> HandlerOptions
-
 ```
 
 Get combined options.
@@ -578,7 +547,6 @@ Returns:
 
 ```python
 get_templates_dir(handler: str | None = None) -> Path
-
 ```
 
 Return the path to the handler's templates directory.
@@ -609,7 +577,6 @@ load_inventory(
     base_url: str | None = None,
     **kwargs: Any,
 ) -> Iterator[tuple[str, str]]
-
 ```
 
 Yield items and their URLs from an inventory file streamed from `in_file`.
@@ -645,7 +612,6 @@ render(
     *,
     locale: str | None = None,
 ) -> str
-
 ```
 
 Render a template using provided data and configuration options.
@@ -676,7 +642,6 @@ render_backlinks(
     *,
     locale: str | None = None,
 ) -> str
-
 ```
 
 Render backlinks.
@@ -699,7 +664,6 @@ Returns:
 
 ```python
 teardown() -> None
-
 ```
 
 Teardown the handler.
@@ -710,7 +674,6 @@ This method should be implemented to, for example, terminate a subprocess that w
 
 ```python
 update_env(*args: Any, **kwargs: Any) -> None
-
 ```
 
 Update the Jinja environment.
@@ -737,7 +700,6 @@ Handlers(
     locale: str = "en",
     tool_config: Any,
 )
-
 ```
 
 A collection of handlers.
@@ -805,7 +767,6 @@ Attributes:
 inventory: Inventory = Inventory(
     project=inventory_project, version=inventory_version
 )
-
 ```
 
 The objects inventory.
@@ -814,7 +775,6 @@ The objects inventory.
 
 ```python
 seen_handlers: Iterable[BaseHandler]
-
 ```
 
 Get the handlers that were encountered so far throughout the build.
@@ -828,7 +788,6 @@ Returns:
 
 ```python
 get_anchors(identifier: str) -> tuple[str, ...]
-
 ```
 
 Return the canonical HTML anchor for the identifier, if any of the seen handlers can collect it.
@@ -849,7 +808,6 @@ Returns:
 get_handler(
     name: str, handler_config: dict | None = None
 ) -> BaseHandler
-
 ```
 
 Get a handler thanks to its name.
@@ -874,7 +832,6 @@ Returns:
 
 ```python
 get_handler_config(name: str) -> dict
-
 ```
 
 Return the global configuration of the given handler.
@@ -893,7 +850,6 @@ Returns:
 
 ```python
 get_handler_name(config: dict) -> str
-
 ```
 
 Return the handler name defined in an "autodoc" instruction YAML configuration, or the global default handler.
@@ -912,7 +868,6 @@ Returns:
 
 ```python
 teardown() -> None
-
 ```
 
 Teardown all cached handlers and clear the cache.
@@ -921,7 +876,6 @@ Teardown all cached handlers and clear the cache.
 
 ```python
 HeadingShiftingTreeprocessor(md: Markdown, shift_by: int)
-
 ```
 
 Bases: `Treeprocessor`
@@ -952,7 +906,6 @@ Attributes:
 
 ```python
 name: str = 'mkdocstrings_headings'
-
 ```
 
 The name of the treeprocessor.
@@ -961,7 +914,6 @@ The name of the treeprocessor.
 
 ```python
 regex: Pattern = compile('([Hh])([1-6])')
-
 ```
 
 The regex to match heading tags.
@@ -970,7 +922,6 @@ The regex to match heading tags.
 
 ```python
 shift_by: int = shift_by
-
 ```
 
 The number of heading "levels" to add to every heading. `<h2>` with `shift_by = 3` becomes `<h5>`.
@@ -979,7 +930,6 @@ The number of heading "levels" to add to every heading. `<h2>` with `shift_by = 
 
 ```python
 run(root: Element) -> None
-
 ```
 
 Shift the levels of all headings in the document.
@@ -988,7 +938,6 @@ Shift the levels of all headings in the document.
 
 ```python
 Highlighter(md: Markdown)
-
 ```
 
 Bases: `Highlight`
@@ -1025,7 +974,6 @@ highlight(
     linenums: bool | None = None,
     **kwargs: Any,
 ) -> str
-
 ```
 
 Highlight a code-snippet.
@@ -1064,7 +1012,6 @@ Returns:
 
 ```python
 IdPrependingTreeprocessor(md: Markdown, id_prefix: str)
-
 ```
 
 Bases: `Treeprocessor`
@@ -1094,7 +1041,6 @@ Attributes:
 
 ```python
 id_prefix: str = id_prefix
-
 ```
 
 The prefix to add to every ID. It is prepended without any separator; specify your own separator if needed.
@@ -1103,7 +1049,6 @@ The prefix to add to every ID. It is prepended without any separator; specify yo
 
 ```python
 name: str = 'mkdocstrings_ids'
-
 ```
 
 The name of the treeprocessor.
@@ -1112,7 +1057,6 @@ The name of the treeprocessor.
 
 ```python
 run(root: Element) -> None
-
 ```
 
 Prepend the configured prefix to all IDs in the document.
@@ -1125,7 +1069,6 @@ Inventory(
     project: str = "project",
     version: str = "0.0.0",
 )
-
 ```
 
 Bases: `dict`
@@ -1161,7 +1104,6 @@ Attributes:
 
 ```python
 project = project
-
 ```
 
 The project name.
@@ -1170,7 +1112,6 @@ The project name.
 
 ```python
 version = version
-
 ```
 
 The project version.
@@ -1179,7 +1120,6 @@ The project version.
 
 ```python
 format_sphinx() -> bytes
-
 ```
 
 Format this inventory as a Sphinx `objects.inv` file.
@@ -1196,7 +1136,6 @@ parse_sphinx(
     *,
     domain_filter: Collection[str] = (),
 ) -> Inventory
-
 ```
 
 Parse a Sphinx v2 inventory file and return an `Inventory` from it.
@@ -1226,7 +1165,6 @@ register(
     priority: int = 1,
     dispname: str | None = None,
 ) -> None
-
 ```
 
 Create and register an item.
@@ -1268,7 +1206,6 @@ InventoryItem(
     priority: int = 1,
     dispname: str | None = None,
 )
-
 ```
 
 Inventory item.
@@ -1318,7 +1255,6 @@ Attributes:
 
 ```python
 dispname: str = dispname or name
-
 ```
 
 The item display name.
@@ -1327,7 +1263,6 @@ The item display name.
 
 ```python
 domain: str = domain
-
 ```
 
 The item domain.
@@ -1336,7 +1271,6 @@ The item domain.
 
 ```python
 name: str = name
-
 ```
 
 The item name.
@@ -1345,7 +1279,6 @@ The item name.
 
 ```python
 priority: int = priority
-
 ```
 
 The item priority.
@@ -1354,7 +1287,6 @@ The item priority.
 
 ```python
 role: str = role
-
 ```
 
 The item role.
@@ -1365,7 +1297,6 @@ The item role.
 sphinx_item_regex = compile(
     "^(.+?)\\s+(\\S+):(\\S+)\\s+(-?\\d+)\\s+(\\S+)\\s*(.*)$"
 )
-
 ```
 
 Regex to parse a Sphinx v2 inventory line.
@@ -1374,7 +1305,6 @@ Regex to parse a Sphinx v2 inventory line.
 
 ```python
 uri: str = uri
-
 ```
 
 The item URI.
@@ -1383,7 +1313,6 @@ The item URI.
 
 ```python
 format_sphinx() -> str
-
 ```
 
 Format this item as a Sphinx inventory line.
@@ -1398,21 +1327,18 @@ Returns:
 parse_sphinx(
     line: str, *, return_none: Literal[False]
 ) -> InventoryItem
-
 ```
 
 ```python
 parse_sphinx(
     line: str, *, return_none: Literal[True]
 ) -> InventoryItem | None
-
 ```
 
 ```python
 parse_sphinx(
     line: str, *, return_none: bool = False
 ) -> InventoryItem | None
-
 ```
 
 Parse a line from a Sphinx v2 inventory file and return an `InventoryItem` from it.
@@ -1421,7 +1347,6 @@ Parse a line from a Sphinx v2 inventory file and return an `InventoryItem` from 
 
 ```python
 LoggerAdapter(prefix: str, logger: Logger)
-
 ```
 
 Bases: `LoggerAdapter`
@@ -1438,7 +1363,6 @@ In Python code:
 >>> logger = get_logger("myplugin")
 >>> logger.debug("This is a debug message.")
 >>> logger.info("This is an info message.", once=True)
-
 ```
 
 In Jinja templates (logger available in context as `log`):
@@ -1446,7 +1370,6 @@ In Jinja templates (logger available in context as `log`):
 ```jinja
 {{ log.debug("This is a debug message.") }}
 {{ log.info("This is an info message.", once=True) }}
-
 ```
 
 Parameters:
@@ -1472,7 +1395,6 @@ Attributes:
 
 ```python
 prefix = prefix
-
 ```
 
 The prefix to insert in front of every message.
@@ -1483,7 +1405,6 @@ The prefix to insert in front of every message.
 log(
     level: int, msg: object, *args: object, **kwargs: object
 ) -> None
-
 ```
 
 Log a message.
@@ -1512,7 +1433,6 @@ Parameters:
 process(
     msg: str, kwargs: MutableMapping[str, Any]
 ) -> tuple[str, Any]
-
 ```
 
 Process the message.
@@ -1539,7 +1459,6 @@ MkdocstringsExtension(
     autorefs: AutorefsPlugin,
     **kwargs: Any,
 )
-
 ```
 
 Bases: `Extension`
@@ -1570,7 +1489,6 @@ Methods:
 
 ```python
 extendMarkdown(md: Markdown) -> None
-
 ```
 
 Register the extension.
@@ -1587,7 +1505,6 @@ Parameters:
 
 ```python
 MkdocstringsInnerExtension(headings: list[Element])
-
 ```
 
 Bases: `Extension`
@@ -1612,7 +1529,6 @@ Attributes:
 
 ```python
 headings = headings
-
 ```
 
 The list that will be populated with all HTML heading elements encountered in the document.
@@ -1621,7 +1537,6 @@ The list that will be populated with all HTML heading elements encountered in th
 
 ```python
 extendMarkdown(md: Markdown) -> None
-
 ```
 
 Register the extension.
@@ -1636,7 +1551,6 @@ Parameters:
 
 ```python
 MkdocstringsPlugin()
-
 ```
 
 Bases: `BasePlugin[PluginConfig]`
@@ -1669,7 +1583,6 @@ Attributes:
 
 ```python
 css_filename: str = 'assets/_mkdocstrings.css'
-
 ```
 
 The path of the CSS file to write in the site directory.
@@ -1678,7 +1591,6 @@ The path of the CSS file to write in the site directory.
 
 ```python
 handlers: Handlers
-
 ```
 
 Get the instance of mkdocstrings.Handlers for this plugin/build.
@@ -1695,7 +1607,6 @@ Returns:
 
 ```python
 inventory_enabled: bool
-
 ```
 
 Tell if the inventory is enabled or not.
@@ -1713,7 +1624,6 @@ on_env = CombinedEvent(
     _on_env_write_inventory,
     _on_env_apply_backlinks,
 )
-
 ```
 
 Extra actions that need to happen after all Markdown-to-HTML page rendering.
@@ -1728,7 +1638,6 @@ Hook for the [`on_env` event](https://www.mkdocs.org/user-guide/plugins/#on_env)
 
 ```python
 plugin_enabled: bool
-
 ```
 
 Tell if the plugin is enabled or not.
@@ -1741,7 +1650,6 @@ Returns:
 
 ```python
 get_handler(handler_name: str) -> BaseHandler
-
 ```
 
 Get a handler by its name. See mkdocstrings.Handlers.get_handler.
@@ -1760,7 +1668,6 @@ Returns:
 
 ```python
 on_config(config: MkDocsConfig) -> MkDocsConfig | None
-
 ```
 
 Instantiate our Markdown extension.
@@ -1783,7 +1690,6 @@ Returns:
 
 ```python
 on_post_build(config: MkDocsConfig, **kwargs: Any) -> None
-
 ```
 
 Teardown the handlers.
@@ -1821,7 +1727,6 @@ Attributes:
 
 ```python
 name: str = 'mkdocstrings_strip_paragraph'
-
 ```
 
 The name of the treeprocessor.
@@ -1830,7 +1735,6 @@ The name of the treeprocessor.
 
 ```python
 strip: bool = False
-
 ```
 
 Whether to strip `<p>` elements or not.
@@ -1839,7 +1743,6 @@ Whether to strip `<p>` elements or not.
 
 ```python
 run(root: Element) -> Element | None
-
 ```
 
 Unwrap the root element if it's a single `<p>` element.
@@ -1863,7 +1766,6 @@ Attributes:
 
 ```python
 custom_templates = Optional(Dir(exists=True))
-
 ```
 
 Location of custom templates to use when rendering API objects.
@@ -1874,7 +1776,6 @@ Value should be the path of a directory relative to the MkDocs configuration fil
 
 ```python
 default_handler = Type(str, default='python')
-
 ```
 
 The default handler to use. The value is the name of the handler module. Default is "python".
@@ -1883,7 +1784,6 @@ The default handler to use. The value is the name of the handler module. Default
 
 ```python
 enable_inventory = Optional(Type(bool))
-
 ```
 
 Whether to enable object inventory creation.
@@ -1892,7 +1792,6 @@ Whether to enable object inventory creation.
 
 ```python
 enabled = Type(bool, default=True)
-
 ```
 
 Whether to enable the plugin. Default is true. If false, *mkdocstrings* will not collect or render anything.
@@ -1901,7 +1800,6 @@ Whether to enable the plugin. Default is true. If false, *mkdocstrings* will not
 
 ```python
 handlers = Type(dict, default={})
-
 ```
 
 Global configuration of handlers.
@@ -1919,14 +1817,12 @@ plugins:
         rust:
           options:
             option9: 2
-
 ```
 
 ### locale
 
 ```python
 locale = Optional(Type(str))
-
 ```
 
 The locale to use for translations.
@@ -1935,7 +1831,6 @@ The locale to use for translations.
 
 ```python
 TemplateLogger(logger: LoggerAdapter)
-
 ```
 
 A wrapper class to allow logging in templates.
@@ -1971,7 +1866,6 @@ Attributes:
 
 ```python
 critical = get_template_logger_function(critical)
-
 ```
 
 Log a CRITICAL message.
@@ -1980,7 +1874,6 @@ Log a CRITICAL message.
 
 ```python
 debug = get_template_logger_function(debug)
-
 ```
 
 Log a DEBUG message.
@@ -1989,7 +1882,6 @@ Log a DEBUG message.
 
 ```python
 error = get_template_logger_function(error)
-
 ```
 
 Log an ERROR message.
@@ -1998,7 +1890,6 @@ Log an ERROR message.
 
 ```python
 info = get_template_logger_function(info)
-
 ```
 
 Log an INFO message.
@@ -2007,7 +1898,6 @@ Log an INFO message.
 
 ```python
 warning = get_template_logger_function(warning)
-
 ```
 
 Log a WARNING message.
@@ -2022,7 +1912,6 @@ An exception raised to tell a theme is not supported.
 
 ```python
 do_any(seq: Sequence, attribute: str | None = None) -> bool
-
 ```
 
 Check if at least one of the item in the sequence evaluates to true.
@@ -2047,7 +1936,6 @@ Returns:
 
 ```python
 get_logger(name: str) -> LoggerAdapter
-
 ```
 
 Return a pre-configured logger.
@@ -2068,7 +1956,6 @@ Returns:
 get_template_logger(
     handler_name: str | None = None,
 ) -> TemplateLogger
-
 ```
 
 Return a logger usable in templates.
@@ -2089,7 +1976,6 @@ Returns:
 get_template_logger_function(
     logger_func: Callable,
 ) -> Callable
-
 ```
 
 Create a wrapper function that automatically receives the Jinja template context.
@@ -2108,7 +1994,6 @@ Returns:
 
 ```python
 get_template_path(context: Context) -> str
-
 ```
 
 Return the path to the template currently using the given context.

@@ -21,7 +21,6 @@ Let say you have a project called `project`. This project has a lot of source fi
         ├──  dolor
         ├──  sit
         └──  amet
-
 ```
 
 Without an automatic process, you will have to manually create a Markdown page for each one of these modules, with the corresponding autodoc instruction, for example `::: project.lorem`, and also add entry in MkDocs' navigation option (`nav` in `mkdocs.yml`). With a lot of modules, this is quickly getting cumbersome.
@@ -43,7 +42,6 @@ plugins:
     scripts:
     - scripts/gen_ref_pages.py  # (2)!
 - mkdocstrings
-
 ```
 
 1. Don't forget to load the `search` plugin when redefining the `plugins` item.
@@ -60,7 +58,6 @@ mkdocs-gen-files is able to run Python scripts at build time. The Python script 
 ├── 📁 src/
 │   └── 📁 project/
 └──  mkdocs.yml
-
 ```
 
 scripts/gen_ref_pages.py
@@ -92,7 +89,6 @@ for path in sorted(src.rglob("*.py")):  # (2)!
         print("::: " + identifier, file=fd)  # (9)!
 
     mkdocs_gen_files.set_edit_path(full_doc_path, path.relative_to(root))  # (10)!
-
 ```
 
 1. It's important to build a path relative to the script itself, to make it possible to build the docs with MkDocs' [`-f` option](https://www.mkdocs.org/user-guide/cli/#mkdocs-build).
@@ -124,14 +120,12 @@ It is important to look out for correct edit page behaviour when using generated
         ├──  dolor.py
         ├──  sit.py
         └──  amet.py
-
 ```
 
 Then we will have to change our `set_edit_path` call to:
 
 ```python
 mkdocs_gen_files.set_edit_path(full_doc_path, Path("../") / path)  # (1)!
-
 ```
 
 1. Path can be used to traverse the structure in any way you may need, but remember to use relative paths!
@@ -153,7 +147,6 @@ nav:
     - sit: reference/project/sit.md
     - amet: reference/project/amet.md
 # rest of the navigation...
-
 ```
 
 Err... so this process is only semi-automatic? Yes, but don't worry, we can fully automate it.
@@ -175,7 +168,6 @@ plugins:
 - literate-nav:
     nav_file: SUMMARY.md
 - mkdocstrings
-
 ```
 
 Then, the previous script is updated like so:
@@ -216,7 +208,6 @@ for path in sorted(src.rglob("*.py")):
 
 with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:  # (2)!
     nav_file.writelines(nav.build_literate_nav())  # (3)!
-
 ```
 
 1. Progressively build the navigation object.
@@ -233,7 +224,6 @@ nav:
 # defer to gen-files + literate-nav
 - Code Reference: reference/  # (1)!
 # rest of the navigation...
-
 ```
 
 1. Note the trailing slash! It is needed so that `mkdocs-literate-nav` knows it has to look for a `SUMMARY.md` file in that folder.
@@ -286,7 +276,6 @@ for path in sorted(src.rglob("*.py")):
 
 with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())
-
 ```
 
 And update your MkDocs configuration to list the plugin:
@@ -303,7 +292,6 @@ plugins:
     nav_file: SUMMARY.md
 - section-index
 - mkdocstrings
-
 ```
 
 With this, `__init__` modules will be documented and bound to the sections themselves, better reflecting our public API.
@@ -328,7 +316,6 @@ docs/css/code_select.css
 .highlight .gp, .highlight .go { /* Generic.Prompt, Generic.Output */
     user-select: none;
 }
-
 ````
 
 mkdocs.yml
@@ -336,7 +323,6 @@ mkdocs.yml
 ```yaml
 extra_css:
 - css/code_select.css
-
 ```
 
 Warning
@@ -350,7 +336,6 @@ markdown_extensions:
 - pymdownx.highlight:
     use_pygments: true
     pygments_lang_class: true
-
 ```
 
 Then you can update the CSS selector like this:
@@ -361,7 +346,6 @@ docs/css/code_select.css
 .language-pycon .gp, .language-pycon .go { /* Generic.Prompt, Generic.Output */
     user-select: none;
 }
-
 ```
 
 If you don't want to enable this globally, you can still use `style` tags in the relevant pages, with more accurate CSS selectors:
@@ -372,7 +356,6 @@ If you don't want to enable this globally, you can still use `style` tags in the
     user-select: none;
 }
 </style>
-
 ```
 
 Try to select the following code block's text:
@@ -381,7 +364,6 @@ Try to select the following code block's text:
 >>> for word in ("Hello", "mkdocstrings!"):
 ...     print(word, end=" ")
 Hello mkdocstrings!
-
 ```
 
 ## Hide documentation strings from source code blocks
@@ -401,7 +383,6 @@ There is a general workaround to hide these docstrings from source blocks using 
 .doc-contents details .highlight code > .sd {  /* Literal.String.Doc */
   display: none;
 }
-
 ```
 
 Note that this is considered a workaround and not a proper solution, because it has side-effects like also removing blank lines.
@@ -416,7 +397,6 @@ mkdocs.yml
 markdown_extensions:
 - pymdownx.highlight:
     default_lang: python
-
 ```
 
 Then in your docstrings, indented code blocks will be highlighted as Python code:
@@ -433,5 +413,4 @@ def my_function():
     End of the docstring.
     """
     pass
-
 ```

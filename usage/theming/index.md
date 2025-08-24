@@ -18,7 +18,6 @@ mkdocs.yml
 plugins:
 - mkdocstrings:
     custom_templates: templates
-
 ```
 
 Your directory structure must be identical to the provided templates one:
@@ -31,7 +30,6 @@ Your directory structure must be identical to the provided templates one:
 └── 📁 <HANDLER 2>/
     ├── 📁 <THEME 1>/
     └── 📁 <THEME 2>/
-
 ```
 
 For example, check out the Python [template tree](https://github.com/mkdocstrings/python/tree/master/src/mkdocstrings_handlers/python/templates/) on GitHub.
@@ -44,7 +42,6 @@ You don't have to replicate the whole tree, only the handlers, themes or templat
     └── 📁 material/
         ├── 📄 parameters.html
         └── 📄 exceptions.html
-
 ```
 
 In the HTML files, replace the original contents with your modified version. In the future, the templates will use Jinja blocks, so it will be easier to modify small part of the templates without copy-pasting the whole files.
@@ -64,7 +61,6 @@ Every template has access to a `log` function, allowing to log messages as usual
 {{ log.warning("A WARNING message.") }}
 {{ log.error("An ERROR message.") }}
 {{ log.critical("A CRITICAL message.") }}
-
 ```
 
 ### CSS classes

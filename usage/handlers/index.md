@@ -8,6 +8,7 @@ A handler is what makes it possible to collect and render documentation for a pa
 - [Crystal](https://mkdocstrings.github.io/crystal/)
 - [Python](https://mkdocstrings.github.io/python/)
 - [Python (Legacy)](https://mkdocstrings.github.io/python-legacy/)
+- [MATLAB](https://watermarkhu.nl/mkdocstrings-matlab/)
 - [Shell](https://mkdocstrings.github.io/shell/)
 - [TypeScript](https://mkdocstrings.github.io/typescript/)
 - [VBA](https://pypi.org/project/mkdocstrings-vba/)
@@ -27,7 +28,6 @@ pyproject.toml
 dependencies = [
     "mkdocstrings[python-legacy]>=0.18",
 ]
-
 ```
 
 The legacy handler will continue to "work" for many releases, as long as the new handler does not cover all previous use-cases.
@@ -45,7 +45,6 @@ pyproject.toml
 dependencies = [
     "mkdocstrings[python]>=0.18",
 ]
-
 ```
 
 #### Selection options
@@ -103,7 +102,6 @@ For *mkdocstrings*, a custom handler package would have the following structure:
       │  ├─╴📁 mkdocs
       │  └─╴📁 readthedocs
       └─╴📄 __init__.py
-
 ```
 
 Note the absence of `__init__.py` module in `mkdocstrings_handlers`!
@@ -160,7 +158,6 @@ class CobraHandler(BaseHandler):
         # use the python handler templates
         # (it assumes the python handler is installed)
         return super().get_templates_dir("python")
-
 ```
 
 ### Usage
@@ -178,7 +175,6 @@ plugins:
         options:
           some_config_option: "a"
           other_config_option: 0
-
 ```
 
 ...and use it in your autodoc instructions:
@@ -193,7 +189,6 @@ docs/some_page.md
     options:
       some_config_option: "b"
       other_config_option: 1
-
 ```
 
 ## Handler extensions
@@ -213,7 +208,6 @@ pyproject.toml
 ```toml
 [project.entry-points."mkdocstrings.python.templates"] # (1)!
 extension-name = "extension_package:get_templates_path" # (2)!
-
 ```
 
 1. Replace `python` by the name of the handler you want to add templates to.
@@ -226,7 +220,6 @@ This entry-point assumes that the extension provides a `get_templates_path` func
 📁 extension_package/
 ├──  __init__.py
 └── 📁 templates/
-
 ```
 
 extension_package/__init__.py
@@ -237,7 +230,6 @@ from pathlib import Path
 
 def get_templates_path() -> Path:
     return Path(__file__).parent / "templates"
-
 ```
 
 This function doesn't accept any argument and returns the path (pathlib.Path or str) to a directory containing templates. The directory must contain one subfolder for each supported theme, even if empty (see "fallback theme" in [custom handlers templates](#templates_1)). For example:
@@ -250,7 +242,6 @@ This function doesn't accept any argument and returns the path (pathlib.Path or 
     ├── 📁 material/
     ├── 📁 readthedocs/
     └── 📁 mkdocs/
-
 ```
 
 *mkdocstrings* will add the folders corresponding to the user-selected theme, and to the handler's defined fallback theme, as usual.

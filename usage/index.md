@@ -9,7 +9,6 @@ The syntax is as follows:
 ```md
 ::: identifier
     YAML block
-
 ```
 
 Resources on YAML.
@@ -39,13 +38,11 @@ Example with the Python handler
         - method_b
       show_root_heading: false
       show_source: false
-
 ```
 
 ```yaml
 nav:
   - "My page": my_page.md
-
 ```
 
 ```python
@@ -63,7 +60,6 @@ class MyClass:
     def method_c(self):
         """Print C!"""
         print("C!")
-
 ```
 
 ### Documentation for `MyClass`
@@ -84,7 +80,6 @@ It is also possible to integrate a mkdocstrings identifier into a Markdown heade
 ## ::: my_package.my_module.MyClass
     options:
       show_source: false
-
 ```
 
 The above is equivalent to:
@@ -94,7 +89,6 @@ The above is equivalent to:
     options:
       show_source: false
       heading_level: 2
-
 ```
 
 ## Global options
@@ -123,7 +117,6 @@ plugins:
       python:
         options:
           show_source: false
-
 ```
 
 The handlers global configuration can then be overridden by local configurations:
@@ -134,7 +127,6 @@ docs/some_page.md
 ::: my_package.my_module.MyClass
     options:
       show_source: true
-
 ```
 
 Some handlers accept additional global configuration. Check the documentation for your handler of interest in [Handlers](handlers/).
@@ -159,7 +151,6 @@ With a custom title:
 
 With the identifier as title:
 [full.path.object2][]
-
 ```
 
 ```html
@@ -167,7 +158,6 @@ With the identifier as title:
 <a href="https://example.com/page1#full.path.object1"><code>Object 1</code></a><p>
 <p>With the identifier as title:
 <a href="https://example.com/page2#full.path.object2">full.path.object2</a></p>
-
 ```
 
 Any item that was inserted using the [autodoc syntax](#autodoc-syntax) (e.g. `::: full.path.object1`) is possible to link to by using the same identifier with the cross-reference syntax (`[example][full.path.object1]`). But the cross-references are also applicable to the items' children that get pulled in.
@@ -192,7 +182,6 @@ plugins:
 - autorefs
 - mkdocstrings:
     [...]
-
 ```
 
 Note that you don't need to (`pip`) install anything more; this plugin is guaranteed to be pulled in with *mkdocstrings*.
@@ -203,19 +192,16 @@ Example
 ## Hello, world!
 
 Testing
-
 ```
 
 ```md
 ## Something else
 
 Please see the [Hello, World!][hello-world] section.
-
 ```
 
 ```html
 <p>Please see the <a href="doc1.html#hello-world">Hello, World!</a> section.</p>
-
 ```
 
 ### Cross-references to a sub-heading in a docstring
@@ -234,22 +220,18 @@ def bar():
 
     - Stay hydrated.
     """
-
 ```
 
 ```md
 ::: foo.bar
-
 ```
 
 ```md
 Check out the [tips][foo.bar--tips]
-
 ```
 
 ```html
 <p>Check out the <a href="doc1.html#foo.bar--tips">tips</a></p>
-
 ```
 
 The above tip about [Finding out the anchor](#finding-out-the-anchor) also applies the same way here.
@@ -275,20 +257,17 @@ plugins:
       python:
         inventories:
         - https://installer.readthedocs.io/en/stable/objects.inv
-
 ```
 
 Now it is possible to cross-reference `installer`'s items. For example:
 
 ```md
 See [installer.records][] to learn about records.
-
 ```
 
 ```html
 <p>See <a href="https://installer.readthedocs.io/en/stable/api/records/#module-installer.records">installer.records</a>
 to learn about records.</p>
-
 ```
 
 See installer.records to learn about records.
@@ -303,7 +282,6 @@ plugins:
         inventories:
         # latest instead of stable
         - https://installer.readthedocs.io/en/latest/objects.inv
-
 ```
 
 In case the inventory file is not served under the base documentation URL, you can explicitly specify both URLs:
@@ -316,7 +294,6 @@ plugins:
         inventories:
         - url: https://cdn.example.com/version/objects.inv
           base_url: https://docs.example.com/version
-
 ```
 
 Absolute URLs to cross-referenced items will then be based on `https://docs.example.com/version/` instead of `https://cdn.example.com/version/`.
@@ -325,21 +302,18 @@ If you need authentication to access the inventory file, you can provide the cre
 
 ```yaml
 - url: https://username:password@private.example.com/version/objects.inv
-
 ```
 
 ...or with token authentication:
 
 ```yaml
 - url: https://token123@private.example.com/version/objects.inv
-
 ```
 
 The credentials can also be specified using environment variables in the form `${ENV_VAR}`:
 
 ```yaml
 - url: https://${USERNAME}:${PASSWORD}@private.example.com/version/objects.inv
-
 ```
 
 Reciprocally, *mkdocstrings* also allows to *generate* an inventory file in the Sphinx format. It will be enabled by default if the Python handler is used, and generated as `objects.inv` in the final site directory. Other projects will be able to cross-reference items from your project.
@@ -350,5 +324,4 @@ To explicitly enable or disable the generation of the inventory file, use the gl
 plugins:
 - mkdocstrings:
     enable_inventory: false
-
 ```
