@@ -6,6 +6,7 @@ A handler is what makes it possible to collect and render documentation for a pa
 
 - [C](https://mkdocstrings.github.io/c/)
 - [Crystal](https://mkdocstrings.github.io/crystal/)
+- [GitHub Actions](https://watermarkhu.nl/mkdocstrings-github/)
 - [Python](https://mkdocstrings.github.io/python/)
 - [Python (Legacy)](https://mkdocstrings.github.io/python-legacy/)
 - [MATLAB](https://watermarkhu.nl/mkdocstrings-matlab/)
