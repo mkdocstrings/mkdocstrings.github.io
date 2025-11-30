@@ -78,3 +78,13 @@ In one of your markdown files:
 ```
 
 See the [Usage](https://mkdocstrings.github.io/usage) section of the docs for more examples!
+
+## Sponsors
+
+**Silver sponsors**
+
+**Bronze sponsors**
+
+______________________________________________________________________
+
+*And 8 more private sponsor(s).*

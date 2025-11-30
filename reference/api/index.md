@@ -4,14 +4,6 @@ mkdocstrings package.
 
 Automatic documentation from sources, for MkDocs.
 
-Modules:
-
-- **`extension`** – Deprecated. Import from mkdocstrings directly.
-- **`handlers`** – Deprecated. Import from mkdocstrings directly.
-- **`inventory`** – Deprecated. Import from mkdocstrings directly.
-- **`loggers`** – Deprecated. Import from mkdocstrings directly.
-- **`plugin`** – Deprecated. Import from mkdocstrings directly.
-
 Classes:
 
 - **`AutoDocProcessor`** – Our "autodoc" Markdown block processor.
@@ -39,6 +31,7 @@ Functions:
 - **`get_template_logger`** – Return a logger usable in templates.
 - **`get_template_logger_function`** – Create a wrapper function that automatically receives the Jinja template context.
 - **`get_template_path`** – Return the path to the template currently using the given context.
+- **`makeExtension`** – Create the extension instance.
 
 Attributes:
 
@@ -122,6 +115,31 @@ Attributes:
 - **`md`** – The Markdown instance.
 - **`regex`** – The regular expression to match our autodoc instructions.
 
+Source code in `src/mkdocstrings/_internal/extension.py`
+
+```python
+def __init__(
+    self,
+    md: Markdown,
+    *,
+    handlers: Handlers,
+    autorefs: AutorefsPlugin,
+) -> None:
+    """Initialize the object.
+
+    Arguments:
+        md: A `markdown.Markdown` instance.
+        handlers: The handlers container.
+        autorefs: The autorefs plugin instance.
+    """
+    super().__init__(parser=md.parser)
+    self.md = md
+    """The Markdown instance."""
+    self._handlers = handlers
+    self._autorefs = autorefs
+    self._updated_envs: set = set()
+```
+
 ### md
 
 ```python
@@ -161,6 +179,56 @@ Parameters:
 
   (`MutableSequence[str]`) – The rest of the blocks to be processed.
 
+Source code in `src/mkdocstrings/_internal/extension.py`
+
+```python
+def run(self, parent: Element, blocks: MutableSequence[str]) -> None:
+    """Run code on the matched blocks.
+
+    The identifier and configuration lines are retrieved from a matched block
+    and used to collect and render an object.
+
+    Arguments:
+        parent: The parent element in the XML tree.
+        blocks: The rest of the blocks to be processed.
+    """
+    block = blocks.pop(0)
+    match = self.regex.search(block)
+
+    if match:
+        if match.start() > 0:
+            self.parser.parseBlocks(parent, [block[: match.start()]])
+        # removes the first line
+        block = block[match.end() :]
+
+    block, the_rest = self.detab(block)
+
+    if not block and blocks and blocks[0].startswith(("    handler:", "    options:")):
+        # YAML options were separated from the `:::` line by a blank line.
+        block = blocks.pop(0)
+
+    if match:
+        identifier = match["name"]
+        heading_level = match["heading"].count("#")
+        _logger.debug("Matched '::: %s'", identifier)
+
+        html, handler, _ = self._process_block(identifier, block, heading_level)
+        el = Element("div", {"class": "mkdocstrings"})
+        # The final HTML is inserted as opaque to subsequent processing, and only revealed at the end.
+        el.text = self.md.htmlStash.store(html)
+
+        if handler.outer_layer:
+            self._process_headings(handler, el)
+
+        parent.append(el)
+
+    if the_rest:
+        # This block contained unindented line(s) after the first indented
+        # line. Insert these lines as the first block of the master blocks
+        # list for future processing.
+        blocks.insert(0, the_rest)
+```
+
 ### test
 
 ```python
@@ -183,10 +251,32 @@ Returns:
 
 - `bool` – Whether this block should be processed or not.
 
+Source code in `src/mkdocstrings/_internal/extension.py`
+
+```python
+def test(self, parent: Element, block: str) -> bool:  # noqa: ARG002
+    """Match our autodoc instructions.
+
+    Arguments:
+        parent: The parent element in the XML tree.
+        block: The block to be tested.
+
+    Returns:
+        Whether this block should be processed or not.
+    """
+    return bool(self.regex.search(block))
+```
+
 ## BaseHandler
 
 ```python
-BaseHandler(*args: Any, **kwargs: Any)
+BaseHandler(
+    *,
+    theme: str,
+    custom_templates: str | None,
+    mdx: Sequence[str | Extension],
+    mdx_config: Mapping[str, Any],
+)
 ```
 
 The base handler class.
@@ -230,7 +320,6 @@ Attributes:
 - **`enable_inventory`** (`bool`) – Whether the inventory creation is enabled.
 - **`env`** – The Jinja environment.
 - **`extra_css`** (`str`) – Extra CSS.
-- **`fallback_config`** (`dict`) – Fallback configuration when searching anchors for identifiers.
 - **`fallback_theme`** (`str`) – Fallback theme to use when a template isn't found in the configured theme.
 - **`md`** (`Markdown`) – The Markdown instance.
 - **`mdx`** – The Markdown extensions to use.
@@ -238,6 +327,80 @@ Attributes:
 - **`name`** (`str`) – The handler's name, for example "python".
 - **`outer_layer`** (`bool`) – Whether we're in the outer Markdown conversion layer.
 - **`theme`** – The selected theme.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def __init__(
+    self,
+    *,
+    theme: str,
+    custom_templates: str | None,
+    mdx: Sequence[str | Extension],
+    mdx_config: Mapping[str, Any],
+) -> None:
+    """Initialize the object.
+
+    If the given theme is not supported (it does not exist), it will look for a `fallback_theme` attribute
+    in `self` to use as a fallback theme.
+
+    Keyword Arguments:
+        theme (str): The theme to use.
+        custom_templates (str | None): The path to custom templates.
+        mdx (list[str | Extension]): A list of Markdown extensions to use.
+        mdx_config (Mapping[str, Mapping[str, Any]]): Configuration for the Markdown extensions.
+    """
+    self.theme = theme
+    """The selected theme."""
+    self.custom_templates = custom_templates
+    """The path to custom templates."""
+    self.mdx = mdx
+    """The Markdown extensions to use."""
+    self.mdx_config = mdx_config
+    """The configuration for the Markdown extensions."""
+    self._md: Markdown | None = None
+    self._headings: list[Element] = []
+
+    paths = []
+
+    # add selected theme templates
+    themes_dir = self.get_templates_dir(self.name)
+    paths.append(themes_dir / self.theme)
+
+    # add extended theme templates
+    extended_templates_dirs = self.get_extended_templates_dirs(self.name)
+    for templates_dir in extended_templates_dirs:
+        paths.append(templates_dir / self.theme)
+
+    # add fallback theme templates
+    if self.fallback_theme and self.fallback_theme != self.theme:
+        paths.append(themes_dir / self.fallback_theme)
+
+        # add fallback theme of extended templates
+        for templates_dir in extended_templates_dirs:
+            paths.append(templates_dir / self.fallback_theme)
+
+    for path in paths:
+        css_path = path / "style.css"
+        if css_path.is_file():
+            self.extra_css += "\n" + css_path.read_text(encoding="utf-8")
+            break
+
+    if self.custom_templates is not None:
+        paths.insert(0, Path(self.custom_templates) / self.name / self.theme)
+
+    self.env = Environment(
+        autoescape=True,
+        loader=FileSystemLoader(paths),
+        auto_reload=False,  # Editing a template in the middle of a build is not useful.
+    )
+    """The Jinja environment."""
+
+    self.env.filters["convert_markdown"] = self.do_convert_markdown
+    self.env.filters["heading"] = self.do_heading
+    self.env.filters["any"] = do_any
+    self.env.globals["log"] = get_template_logger(self.name)
+```
 
 ### custom_templates
 
@@ -250,7 +413,7 @@ The path to custom templates.
 ### domain
 
 ```python
-domain: str = ''
+domain: str
 ```
 
 The handler's domain, used to register objects in the inventory, for example "py".
@@ -282,14 +445,6 @@ extra_css: str = ''
 ```
 
 Extra CSS.
-
-### fallback_config
-
-```python
-fallback_config: dict = {}
-```
-
-Fallback configuration when searching anchors for identifiers.
 
 ### fallback_theme
 
@@ -330,7 +485,7 @@ The configuration for the Markdown extensions.
 ### name
 
 ```python
-name: str = ''
+name: str
 ```
 
 The handler's name, for example "python".
@@ -377,6 +532,27 @@ Returns:
 
 - `CollectorItem` – Anything you want, as long as you can feed it to the handler's render method.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def collect(self, identifier: str, options: HandlerOptions) -> CollectorItem:
+    """Collect data given an identifier and user configuration.
+
+    In the implementation, you typically call a subprocess that returns JSON, and load that JSON again into
+    a Python dictionary for example, though the implementation is completely free.
+
+    Arguments:
+        identifier: An identifier for which to collect data. For example, in Python,
+            it would be 'mkdocstrings.handlers' to collect documentation about the handlers module.
+            It can be anything that you can feed to the tool of your choice.
+        options: The final configuration options.
+
+    Returns:
+        Anything you want, as long as you can feed it to the handler's `render` method.
+    """
+    raise NotImplementedError
+```
+
 ### do_convert_markdown
 
 ```python
@@ -413,6 +589,54 @@ Parameters:
 Returns:
 
 - `Markup` – An HTML string.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def do_convert_markdown(
+    self,
+    text: str,
+    heading_level: int,
+    html_id: str = "",
+    *,
+    strip_paragraph: bool = False,
+    autoref_hook: AutorefsHookInterface | None = None,
+) -> Markup:
+    """Render Markdown text; for use inside templates.
+
+    Arguments:
+        text: The text to convert.
+        heading_level: The base heading level to start all Markdown headings from.
+        html_id: The HTML id of the element that's considered the parent of this element.
+        strip_paragraph: Whether to exclude the `<p>` tag from around the whole output.
+
+    Returns:
+        An HTML string.
+    """
+    global _markdown_conversion_layer  # noqa: PLW0603
+    _markdown_conversion_layer += 1
+    treeprocessors = self.md.treeprocessors
+    treeprocessors[HeadingShiftingTreeprocessor.name].shift_by = heading_level  # type: ignore[attr-defined]
+    treeprocessors[IdPrependingTreeprocessor.name].id_prefix = html_id and html_id + "--"  # type: ignore[attr-defined]
+    treeprocessors[ParagraphStrippingTreeprocessor.name].strip = strip_paragraph  # type: ignore[attr-defined]
+    if BacklinksTreeProcessor.name in treeprocessors:
+        treeprocessors[BacklinksTreeProcessor.name].initial_id = html_id  # type: ignore[attr-defined]
+    if autoref_hook and AutorefsInlineProcessor.name in self.md.inlinePatterns:
+        self.md.inlinePatterns[AutorefsInlineProcessor.name].hook = autoref_hook  # type: ignore[attr-defined]
+
+    try:
+        return Markup(self.md.convert(text))
+    finally:
+        treeprocessors[HeadingShiftingTreeprocessor.name].shift_by = 0  # type: ignore[attr-defined]
+        treeprocessors[IdPrependingTreeprocessor.name].id_prefix = ""  # type: ignore[attr-defined]
+        treeprocessors[ParagraphStrippingTreeprocessor.name].strip = False  # type: ignore[attr-defined]
+        if BacklinksTreeProcessor.name in treeprocessors:
+            treeprocessors[BacklinksTreeProcessor.name].initial_id = None  # type: ignore[attr-defined]
+        if AutorefsInlineProcessor.name in self.md.inlinePatterns:
+            self.md.inlinePatterns[AutorefsInlineProcessor.name].hook = None  # type: ignore[attr-defined]
+        self.md.reset()
+        _markdown_conversion_layer -= 1
+```
 
 ### do_heading
 
@@ -465,6 +689,81 @@ Returns:
 
 - `Markup` – An HTML string.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def do_heading(
+    self,
+    content: Markup,
+    heading_level: int,
+    *,
+    role: str | None = None,
+    hidden: bool = False,
+    toc_label: str | None = None,
+    skip_inventory: bool = False,
+    **attributes: str,
+) -> Markup:
+    """Render an HTML heading and register it for the table of contents. For use inside templates.
+
+    Arguments:
+        content: The HTML within the heading.
+        heading_level: The level of heading (e.g. 3 -> `h3`).
+        role: An optional role for the object bound to this heading.
+        hidden: If True, only register it for the table of contents, don't render anything.
+        toc_label: The title to use in the table of contents ('data-toc-label' attribute).
+        skip_inventory: Flag element to not be registered in the inventory (by setting a `data-skip-inventory` attribute).
+        **attributes: Any extra HTML attributes of the heading.
+
+    Returns:
+        An HTML string.
+    """
+    # Produce a heading element that will be used later, in `AutoDocProcessor.run`, to:
+    # - register it in the ToC: right now we're in the inner Markdown conversion layer,
+    #   so we have to bubble up the information to the outer Markdown conversion layer,
+    #   for the ToC extension to pick it up.
+    # - register it in autorefs: right now we don't know what page is being rendered,
+    #   so we bubble up the information again to where autorefs knows the page,
+    #   and can correctly register the heading anchor (id) to its full URL.
+    # - register it in the objects inventory: same as for autorefs,
+    #   we don't know the page here, or the handler (and its domain),
+    #   so we bubble up the information to where the mkdocstrings extension knows that.
+    el = Element(f"h{heading_level}", attributes)
+    if toc_label is None:
+        toc_label = content.unescape() if isinstance(content, Markup) else content
+    el.set("data-toc-label", toc_label)
+    if skip_inventory:
+        el.set("data-skip-inventory", "true")
+    if role:
+        el.set("data-role", role)
+    if content:
+        el.text = str(content).strip()
+    self._headings.append(el)
+
+    if hidden:
+        return Markup('<a id="{0}"></a>').format(attributes["id"])
+
+    # Now produce the actual HTML to be rendered. The goal is to wrap the HTML content into a heading.
+    # Start with a heading that has just attributes (no text), and add a placeholder into it.
+    el = Element(f"h{heading_level}", attributes)
+    el.append(Element("mkdocstrings-placeholder"))
+    # Tell the inner 'toc' extension to make its additions if configured so.
+    toc = cast("TocTreeprocessor", self.md.treeprocessors["toc"])
+    if toc.use_anchors:
+        toc.add_anchor(el, attributes["id"])
+    if toc.use_permalinks:
+        toc.add_permalink(el, attributes["id"])
+
+    # The content we received is HTML, so it can't just be inserted into the tree. We had marked the middle
+    # of the heading with a placeholder that can never occur (text can't directly contain angle brackets).
+    # Now this HTML wrapper can be "filled" by replacing the placeholder.
+    html_with_placeholder = tostring(el, encoding="unicode")
+    assert (  # noqa: S101
+        html_with_placeholder.count("<mkdocstrings-placeholder />") == 1
+    ), f"Bug in mkdocstrings: failed to replace in {html_with_placeholder!r}"
+    html = html_with_placeholder.replace("<mkdocstrings-placeholder />", content)
+    return Markup(html)
+```
+
 ### get_aliases
 
 ```python
@@ -482,6 +781,21 @@ Parameters:
 Returns:
 
 - `tuple[str, ...]` – A tuple of strings - aliases.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_aliases(self, identifier: str) -> tuple[str, ...]:  # noqa: ARG002
+    """Return the possible aliases for a given identifier.
+
+    Arguments:
+        identifier: The identifier to get the aliases of.
+
+    Returns:
+        A tuple of strings - aliases.
+    """
+    return ()
+```
 
 ### get_extended_templates_dirs
 
@@ -501,6 +815,22 @@ Returns:
 
 - `list[Path]` – The extensions templates directories.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_extended_templates_dirs(self, handler: str) -> list[Path]:
+    """Load template extensions for the given handler, return their templates directories.
+
+    Arguments:
+        handler: The name of the handler to get the extended templates directory of.
+
+    Returns:
+        The extensions templates directories.
+    """
+    discovered_extensions = entry_points(group=f"mkdocstrings.{handler}.templates")
+    return [extension.load()() for extension in discovered_extensions]
+```
+
 ### get_headings
 
 ```python
@@ -513,6 +843,20 @@ Returns:
 
 - `Sequence[Element]` – A list of HTML elements.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_headings(self) -> Sequence[Element]:
+    """Return and clear the headings gathered so far.
+
+    Returns:
+        A list of HTML elements.
+    """
+    result = list(self._headings)
+    self._headings.clear()
+    return result
+```
+
 ### get_inventory_urls
 
 ```python
@@ -520,6 +864,14 @@ get_inventory_urls() -> list[tuple[str, dict[str, Any]]]
 ```
 
 Return the URLs (and configuration options) of the inventory files to download.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_inventory_urls(self) -> list[tuple[str, dict[str, Any]]]:
+    """Return the URLs (and configuration options) of the inventory files to download."""
+    return []
+```
 
 ### get_options
 
@@ -542,6 +894,25 @@ Parameters:
 Returns:
 
 - `HandlerOptions` – The combined options.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_options(self, local_options: Mapping[str, Any]) -> HandlerOptions:
+    """Get combined options.
+
+    Override this method to customize how options are combined,
+    for example by merging the global options with the local options.
+    By combining options here, you don't have to do it twice in `collect` and `render`.
+
+    Arguments:
+        local_options: The local options.
+
+    Returns:
+        The combined options.
+    """
+    return local_options
+```
 
 ### get_templates_dir
 
@@ -567,6 +938,38 @@ Raises:
 Returns:
 
 - `Path` – The templates directory path.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_templates_dir(self, handler: str | None = None) -> Path:
+    """Return the path to the handler's templates directory.
+
+    Override to customize how the templates directory is found.
+
+    Arguments:
+        handler: The name of the handler to get the templates directory of.
+
+    Raises:
+        ModuleNotFoundError: When no such handler is installed.
+        FileNotFoundError: When the templates directory cannot be found.
+
+    Returns:
+        The templates directory path.
+    """
+    handler = handler or self.name
+    try:
+        import mkdocstrings_handlers  # noqa: PLC0415
+    except ModuleNotFoundError as error:
+        raise ModuleNotFoundError(f"Handler '{handler}' not found, is it installed?") from error
+
+    for path in mkdocstrings_handlers.__path__:
+        theme_path = Path(path, handler, "templates")
+        if theme_path.exists():
+            return theme_path
+
+    raise FileNotFoundError(f"Can't find 'templates' folder for handler '{handler}'")
+```
 
 ### load_inventory
 
@@ -603,6 +1006,31 @@ Yields:
 
 - `tuple[str, str]` – Tuples of (item identifier, item URL).
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+@classmethod
+def load_inventory(
+    cls,
+    in_file: BinaryIO,  # noqa: ARG003
+    url: str,  # noqa: ARG003
+    base_url: str | None = None,  # noqa: ARG003
+    **kwargs: Any,  # noqa: ARG003
+) -> Iterator[tuple[str, str]]:
+    """Yield items and their URLs from an inventory file streamed from `in_file`.
+
+    Arguments:
+        in_file: The binary file-like object to read the inventory from.
+        url: The URL that this file is being streamed from (used to guess `base_url`).
+        base_url: The URL that this inventory's sub-paths are relative to.
+        **kwargs: Ignore additional arguments passed from the config.
+
+    Yields:
+        Tuples of (item identifier, item URL).
+    """
+    yield from ()
+```
+
 ### render
 
 ```python
@@ -634,6 +1062,23 @@ Returns:
 
 - `str` – The rendered template as HTML.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def render(self, data: CollectorItem, options: HandlerOptions, *, locale: str | None = None) -> str:
+    """Render a template using provided data and configuration options.
+
+    Arguments:
+        data: The collected data to render.
+        options: The final configuration options.
+        locale: The locale to use for translations, if any.
+
+    Returns:
+        The rendered template as HTML.
+    """
+    raise NotImplementedError
+```
+
 ### render_backlinks
 
 ```python
@@ -660,6 +1105,22 @@ Returns:
 
 - `str` – The rendered backlinks as HTML.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def render_backlinks(self, backlinks: Mapping[str, Iterable[Backlink]], *, locale: str | None = None) -> str:  # noqa: ARG002
+    """Render backlinks.
+
+    Parameters:
+        backlinks: A mapping of identifiers to backlinks.
+        locale: The locale to use for translations, if any.
+
+    Returns:
+        The rendered backlinks as HTML.
+    """
+    return ""
+```
+
 ### teardown
 
 ```python
@@ -670,13 +1131,31 @@ Teardown the handler.
 
 This method should be implemented to, for example, terminate a subprocess that was started when creating the handler instance.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def teardown(self) -> None:
+    """Teardown the handler.
+
+    This method should be implemented to, for example, terminate a subprocess
+    that was started when creating the handler instance.
+    """
+```
+
 ### update_env
 
 ```python
-update_env(*args: Any, **kwargs: Any) -> None
+update_env(config: Any) -> None
 ```
 
 Update the Jinja environment.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def update_env(self, config: Any) -> None:
+    """Update the Jinja environment."""
+```
 
 ## CollectionError
 
@@ -750,7 +1229,6 @@ Parameters:
 
 Methods:
 
-- **`get_anchors`** – Return the canonical HTML anchor for the identifier, if any of the seen handlers can collect it.
 - **`get_handler`** – Get a handler thanks to its name.
 - **`get_handler_config`** – Return the global configuration of the given handler.
 - **`get_handler_name`** – Return the handler name defined in an "autodoc" instruction YAML configuration, or the global default handler.
@@ -760,6 +1238,53 @@ Attributes:
 
 - **`inventory`** (`Inventory`) – The objects inventory.
 - **`seen_handlers`** (`Iterable[BaseHandler]`) – Get the handlers that were encountered so far throughout the build.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def __init__(
+    self,
+    *,
+    theme: str,
+    default: str,
+    inventory_project: str,
+    inventory_version: str = "0.0.0",
+    handlers_config: dict[str, HandlerConfig] | None = None,
+    custom_templates: str | None = None,
+    mdx: Sequence[str | Extension] | None = None,
+    mdx_config: Mapping[str, Any] | None = None,
+    locale: str = "en",
+    tool_config: Any,
+) -> None:
+    """Initialize the object.
+
+    Arguments:
+        theme: The theme to use.
+        default: The default handler to use.
+        inventory_project: The project name to use in the inventory.
+        inventory_version: The project version to use in the inventory.
+        handlers_config: The handlers configuration.
+        custom_templates: The path to custom templates.
+        mdx: A list of Markdown extensions to use.
+        mdx_config: Configuration for the Markdown extensions.
+        locale: The locale to use for translations.
+        tool_config: Tool configuration to pass down to handlers.
+    """
+    self._theme = theme
+    self._default = default
+    self._handlers_config = handlers_config or {}
+    self._custom_templates = custom_templates
+    self._mdx = mdx or []
+    self._mdx_config = mdx_config or {}
+    self._handlers: dict[str, BaseHandler] = {}
+    self._locale = locale
+    self._tool_config = tool_config
+
+    self.inventory: Inventory = Inventory(project=inventory_project, version=inventory_version)
+    """The objects inventory."""
+
+    self._inv_futures: dict[futures.Future, tuple[BaseHandler, str, Any]] = {}
+```
 
 ### inventory
 
@@ -783,24 +1308,6 @@ Returns:
 
 - `Iterable[BaseHandler]` – An iterable of instances of BaseHandler
 - `Iterable[BaseHandler]` – (usable only to loop through it).
-
-### get_anchors
-
-```python
-get_anchors(identifier: str) -> tuple[str, ...]
-```
-
-Return the canonical HTML anchor for the identifier, if any of the seen handlers can collect it.
-
-Parameters:
-
-- #### **`identifier`**
-
-  (`str`) – The identifier (one that collect can accept).
-
-Returns:
-
-- `tuple[str, ...]` – A tuple of strings - anchors without '#', or an empty tuple if there isn't any identifier familiar with it.
 
 ### get_handler
 
@@ -828,6 +1335,41 @@ Returns:
 
 - `BaseHandler` – An instance of a subclass of BaseHandler, as instantiated by the get_handler method of the handler's module.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_handler(self, name: str, handler_config: dict | None = None) -> BaseHandler:
+    """Get a handler thanks to its name.
+
+    This function dynamically imports a module named "mkdocstrings.handlers.NAME", calls its
+    `get_handler` method to get an instance of a handler, and caches it in dictionary.
+    It means that during one run (for each reload when serving, or once when building),
+    a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
+
+    Arguments:
+        name: The name of the handler. Really, it's the name of the Python module holding it.
+        handler_config: Configuration passed to the handler.
+
+    Returns:
+        An instance of a subclass of [`BaseHandler`][mkdocstrings.BaseHandler],
+            as instantiated by the `get_handler` method of the handler's module.
+    """
+    if name not in self._handlers:
+        if handler_config is None:
+            handler_config = self._handlers_config.get(name, {})
+        module = importlib.import_module(f"mkdocstrings_handlers.{name}")
+
+        self._handlers[name] = module.get_handler(
+            theme=self._theme,
+            custom_templates=self._custom_templates,
+            mdx=self._mdx,
+            mdx_config=self._mdx_config,
+            handler_config=handler_config,
+            tool_config=self._tool_config,
+        )
+    return self._handlers[name]
+```
+
 ### get_handler_config
 
 ```python
@@ -845,6 +1387,21 @@ Parameters:
 Returns:
 
 - `dict` – The global configuration of the given handler. It can be an empty dictionary.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_handler_config(self, name: str) -> dict:
+    """Return the global configuration of the given handler.
+
+    Arguments:
+        name: The name of the handler to get the global configuration of.
+
+    Returns:
+        The global configuration of the given handler. It can be an empty dictionary.
+    """
+    return self._handlers_config.get(name, None) or {}
+```
 
 ### get_handler_name
 
@@ -864,6 +1421,21 @@ Returns:
 
 - `str` – The name of the handler to use.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def get_handler_name(self, config: dict) -> str:
+    """Return the handler name defined in an "autodoc" instruction YAML configuration, or the global default handler.
+
+    Arguments:
+        config: A configuration dictionary, obtained from YAML below the "autodoc" instruction.
+
+    Returns:
+        The name of the handler to use.
+    """
+    return config.get("handler", self._default)
+```
+
 ### teardown
 
 ```python
@@ -871,6 +1443,18 @@ teardown() -> None
 ```
 
 Teardown all cached handlers and clear the cache.
+
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def teardown(self) -> None:
+    """Teardown all cached handlers and clear the cache."""
+    for future in self._inv_futures:
+        future.cancel()
+    for handler in self.seen_handlers:
+        handler.teardown()
+    self._handlers.clear()
+```
 
 ## HeadingShiftingTreeprocessor
 
@@ -901,6 +1485,20 @@ Attributes:
 - **`name`** (`str`) – The name of the treeprocessor.
 - **`regex`** (`Pattern`) – The regex to match heading tags.
 - **`shift_by`** (`int`) – The number of heading "levels" to add to every heading. <h2> with shift_by = 3 becomes <h5>.
+
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def __init__(self, md: Markdown, shift_by: int):
+    """Initialize the object.
+
+    Arguments:
+        md: A `markdown.Markdown` instance.
+        shift_by: The number of heading "levels" to add to every heading.
+    """
+    super().__init__(md)
+    self.shift_by = shift_by
+```
 
 ### name
 
@@ -934,6 +1532,21 @@ run(root: Element) -> None
 
 Shift the levels of all headings in the document.
 
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def run(self, root: Element) -> None:
+    """Shift the levels of all headings in the document."""
+    if not self.shift_by:
+        return
+    for el in root.iter():
+        match = self.regex.fullmatch(el.tag)
+        if match:
+            level = int(match[2]) + self.shift_by
+            level = max(1, min(level, 6))
+            el.tag = f"{match[1]}{level}"
+```
+
 ## Highlighter
 
 ```python
@@ -961,6 +1574,30 @@ Parameters:
 Methods:
 
 - **`highlight`** – Highlight a code-snippet.
+
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def __init__(self, md: Markdown):
+    """Configure to match a `markdown.Markdown` instance.
+
+    Arguments:
+        md: The Markdown instance to read configs from.
+    """
+    config: dict[str, Any] = {}
+    self._highlighter: str | None = None
+    for ext in md.registeredExtensions:
+        if isinstance(ext, HighlightExtension) and (ext.enabled or not config):
+            self._highlighter = "highlight"
+            config = ext.getConfigs()
+            break  # This one takes priority, no need to continue looking
+        if isinstance(ext, CodeHiliteExtension) and not config:
+            self._highlighter = "codehilite"
+            config = ext.getConfigs()
+            config["language_prefix"] = config["lang_prefix"]
+    self._css_class = config.pop("css_class", "highlight")
+    super().__init__(**{name: opt for name, opt in config.items() if name in self._highlight_config_keys})
+```
 
 ### highlight
 
@@ -1008,6 +1645,55 @@ Returns:
 
 - `str` – The highlighted code as HTML text, marked safe (not escaped for HTML).
 
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def highlight(
+    self,
+    src: str,
+    language: str | None = None,
+    *,
+    inline: bool = False,
+    dedent: bool = True,
+    linenums: bool | None = None,
+    **kwargs: Any,
+) -> str:
+    """Highlight a code-snippet.
+
+    Arguments:
+        src: The code to highlight.
+        language: Explicitly tell what language to use for highlighting.
+        inline: Whether to highlight as inline.
+        dedent: Whether to dedent the code before highlighting it or not.
+        linenums: Whether to add line numbers in the result.
+        **kwargs: Pass on to `pymdownx.highlight.Highlight.highlight`.
+
+    Returns:
+        The highlighted code as HTML text, marked safe (not escaped for HTML).
+    """
+    if isinstance(src, Markup):
+        src = src.unescape()
+    if dedent:
+        src = textwrap.dedent(src)
+
+    kwargs.setdefault("css_class", self._css_class)
+    old_linenums = self.linenums  # type: ignore[has-type]
+    if linenums is not None:
+        self.linenums = linenums
+    try:
+        result = super().highlight(src, language, inline=inline, **kwargs)
+    finally:
+        self.linenums = old_linenums
+
+    if inline:
+        # From the maintainer of codehilite, the codehilite CSS class, as defined by the user,
+        # should never be added to inline code, because codehilite does not support inline code.
+        # See https://github.com/Python-Markdown/markdown/issues/1220#issuecomment-1692160297.
+        css_class = "" if self._highlighter == "codehilite" else kwargs["css_class"]
+        return Markup(f'<code class="{css_class} language-{language}">{result.text}</code>')
+    return Markup(result)
+```
+
 ## IdPrependingTreeprocessor
 
 ```python
@@ -1037,6 +1723,20 @@ Attributes:
 - **`id_prefix`** (`str`) – The prefix to add to every ID. It is prepended without any separator; specify your own separator if needed.
 - **`name`** (`str`) – The name of the treeprocessor.
 
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def __init__(self, md: Markdown, id_prefix: str):
+    """Initialize the object.
+
+    Arguments:
+        md: A `markdown.Markdown` instance.
+        id_prefix: The prefix to add to every ID. It is prepended without any separator.
+    """
+    super().__init__(md)
+    self.id_prefix = id_prefix
+```
+
 ### id_prefix
 
 ```python
@@ -1060,6 +1760,15 @@ run(root: Element) -> None
 ```
 
 Prepend the configured prefix to all IDs in the document.
+
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def run(self, root: Element) -> None:
+    """Prepend the configured prefix to all IDs in the document."""
+    if self.id_prefix:
+        self._prefix_ids(root)
+```
 
 ## Inventory
 
@@ -1100,6 +1809,27 @@ Attributes:
 - **`project`** – The project name.
 - **`version`** – The project version.
 
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+def __init__(self, items: list[InventoryItem] | None = None, project: str = "project", version: str = "0.0.0"):
+    """Initialize the object.
+
+    Arguments:
+        items: A list of items.
+        project: The project name.
+        version: The project version.
+    """
+    super().__init__()
+    items = items or []
+    for item in items:
+        self[item.name] = item
+    self.project = project
+    """The project name."""
+    self.version = version
+    """The project version."""
+```
+
 ### project
 
 ```python
@@ -1128,6 +1858,35 @@ Returns:
 
 - `bytes` – The inventory as bytes.
 
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+def format_sphinx(self) -> bytes:
+    """Format this inventory as a Sphinx `objects.inv` file.
+
+    Returns:
+        The inventory as bytes.
+    """
+    header = (
+        dedent(
+            f"""
+            # Sphinx inventory version 2
+            # Project: {self.project}
+            # Version: {self.version}
+            # The remainder of this file is compressed using zlib.
+            """,
+        )
+        .lstrip()
+        .encode("utf8")
+    )
+
+    lines = [
+        item.format_sphinx().encode("utf8")
+        for item in sorted(self.values(), key=lambda item: (item.domain, item.name))
+    ]
+    return header + zlib.compress(b"\n".join(lines) + b"\n", 9)
+```
+
 ### parse_sphinx
 
 ```python
@@ -1153,6 +1912,31 @@ Parameters:
 Returns:
 
 - `Inventory` – An inventory containing the collected items.
+
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+@classmethod
+def parse_sphinx(cls, in_file: BinaryIO, *, domain_filter: Collection[str] = ()) -> Inventory:
+    """Parse a Sphinx v2 inventory file and return an `Inventory` from it.
+
+    Arguments:
+        in_file: The binary file-like object to read from.
+        domain_filter: A collection of domain values to allow (and filter out all other ones).
+
+    Returns:
+        An inventory containing the collected items.
+    """
+    for _ in range(4):
+        in_file.readline()
+    lines = zlib.decompress(in_file.read()).splitlines()
+    items: list[InventoryItem] = [
+        item for line in lines if (item := InventoryItem.parse_sphinx(line.decode("utf8"), return_none=True))
+    ]
+    if domain_filter:
+        items = [item for item in items if item.domain in domain_filter]
+    return cls(items)
+```
 
 ### register
 
@@ -1194,6 +1978,38 @@ Parameters:
 - #### **`dispname`**
 
   (`str | None`, default: `None` ) – The item display name.
+
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+def register(
+    self,
+    name: str,
+    domain: str,
+    role: str,
+    uri: str,
+    priority: int = 1,
+    dispname: str | None = None,
+) -> None:
+    """Create and register an item.
+
+    Arguments:
+        name: The item name.
+        domain: The item domain, like 'python' or 'crystal'.
+        role: The item role, like 'class' or 'method'.
+        uri: The item URI.
+        priority: The item priority. Only used internally by mkdocstrings and Sphinx.
+        dispname: The item display name.
+    """
+    self[name] = InventoryItem(
+        name=name,
+        domain=domain,
+        role=role,
+        uri=uri,
+        priority=priority,
+        dispname=dispname,
+    )
+```
 
 ## InventoryItem
 
@@ -1250,6 +2066,42 @@ Attributes:
 - **`role`** (`str`) – The item role.
 - **`sphinx_item_regex`** – Regex to parse a Sphinx v2 inventory line.
 - **`uri`** (`str`) – The item URI.
+
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+def __init__(
+    self,
+    name: str,
+    domain: str,
+    role: str,
+    uri: str,
+    priority: int = 1,
+    dispname: str | None = None,
+):
+    """Initialize the object.
+
+    Arguments:
+        name: The item name.
+        domain: The item domain, like 'python' or 'crystal'.
+        role: The item role, like 'class' or 'method'.
+        uri: The item URI.
+        priority: The item priority. Only used internally by mkdocstrings and Sphinx.
+        dispname: The item display name.
+    """
+    self.name: str = name
+    """The item name."""
+    self.domain: str = domain
+    """The item domain."""
+    self.role: str = role
+    """The item role."""
+    self.uri: str = uri
+    """The item URI."""
+    self.priority: int = priority
+    """The item priority."""
+    self.dispname: str = dispname or name
+    """The item display name."""
+```
 
 ### dispname
 
@@ -1321,6 +2173,24 @@ Returns:
 
 - `str` – A line formatted for an objects.inv file.
 
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+def format_sphinx(self) -> str:
+    """Format this item as a Sphinx inventory line.
+
+    Returns:
+        A line formatted for an `objects.inv` file.
+    """
+    dispname = self.dispname
+    if dispname == self.name:
+        dispname = "-"
+    uri = self.uri
+    if uri.endswith(self.name):
+        uri = uri[: -len(self.name)] + "$"
+    return f"{self.name} {self.domain}:{self.role} {self.priority} {uri} {dispname}"
+```
+
 ### parse_sphinx
 
 ```python
@@ -1342,6 +2212,25 @@ parse_sphinx(
 ```
 
 Parse a line from a Sphinx v2 inventory file and return an `InventoryItem` from it.
+
+Source code in `src/mkdocstrings/_internal/inventory.py`
+
+```python
+@classmethod
+def parse_sphinx(cls, line: str, *, return_none: bool = False) -> InventoryItem | None:
+    """Parse a line from a Sphinx v2 inventory file and return an `InventoryItem` from it."""
+    match = cls.sphinx_item_regex.search(line)
+    if not match:
+        if return_none:
+            return None
+        raise ValueError(line)
+    name, domain, role, priority, uri, dispname = match.groups()
+    if uri.endswith("$"):
+        uri = uri[:-1] + name
+    if dispname == "-":
+        dispname = name
+    return cls(name, domain, role, uri, int(priority), dispname)
+```
 
 ## LoggerAdapter
 
@@ -1391,6 +2280,22 @@ Attributes:
 
 - **`prefix`** – The prefix to insert in front of every message.
 
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def __init__(self, prefix: str, logger: logging.Logger):
+    """Initialize the object.
+
+    Arguments:
+        prefix: The string to insert in front of every message.
+        logger: The logger instance.
+    """
+    super().__init__(logger, {})
+    self.prefix = prefix
+    """The prefix to insert in front of every message."""
+    self._logged: set[tuple[LoggerAdapter, str]] = set()
+```
+
 ### prefix
 
 ```python
@@ -1427,6 +2332,25 @@ Parameters:
 
   (`object`, default: `{}` ) – Additional keyword arguments passed to parent method.
 
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def log(self, level: int, msg: object, *args: object, **kwargs: object) -> None:
+    """Log a message.
+
+    Arguments:
+        level: The logging level.
+        msg: The message.
+        *args: Additional arguments passed to parent method.
+        **kwargs: Additional keyword arguments passed to parent method.
+    """
+    if kwargs.pop("once", False):
+        if (key := (self, str(msg))) in self._logged:
+            return
+        self._logged.add(key)
+    super().log(level, msg, *args, **kwargs)  # type: ignore[arg-type]
+```
+
 ### process
 
 ```python
@@ -1450,6 +2374,22 @@ Parameters:
 Returns:
 
 - `tuple[str, Any]` – The processed message.
+
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, Any]:
+    """Process the message.
+
+    Arguments:
+        msg: The message:
+        kwargs: Remaining arguments.
+
+    Returns:
+        The processed message.
+    """
+    return f"{self.prefix}: {msg}", kwargs
+```
 
 ## MkdocstringsExtension
 
@@ -1485,6 +2425,22 @@ Methods:
 
 - **`extendMarkdown`** – Register the extension.
 
+Source code in `src/mkdocstrings/_internal/extension.py`
+
+```python
+def __init__(self, handlers: Handlers, autorefs: AutorefsPlugin, **kwargs: Any) -> None:
+    """Initialize the object.
+
+    Arguments:
+        handlers: The handlers container.
+        autorefs: The autorefs plugin instance.
+        **kwargs: Keyword arguments used by `markdown.extensions.Extension`.
+    """
+    super().__init__(**kwargs)
+    self._handlers = handlers
+    self._autorefs = autorefs
+```
+
 ### extendMarkdown
 
 ```python
@@ -1500,6 +2456,34 @@ Parameters:
 - #### **`md`**
 
   (`Markdown`) – A markdown.Markdown instance.
+
+Source code in `src/mkdocstrings/_internal/extension.py`
+
+```python
+def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802 (casing: parent method's name)
+    """Register the extension.
+
+    Add an instance of our [`AutoDocProcessor`][mkdocstrings.AutoDocProcessor] to the Markdown parser.
+
+    Arguments:
+        md: A `markdown.Markdown` instance.
+    """
+    md.parser.blockprocessors.register(
+        AutoDocProcessor(md, handlers=self._handlers, autorefs=self._autorefs),
+        "mkdocstrings",
+        priority=75,  # Right before markdown.blockprocessors.HashHeaderProcessor
+    )
+    md.treeprocessors.register(
+        _HeadingsPostProcessor(md),
+        "mkdocstrings_post_headings",
+        priority=4,  # Right after 'toc'.
+    )
+    md.treeprocessors.register(
+        _TocLabelsTreeProcessor(md),
+        "mkdocstrings_post_toc_labels",
+        priority=4,  # Right after 'toc'.
+    )
+```
 
 ## MkdocstringsInnerExtension
 
@@ -1525,6 +2509,20 @@ Attributes:
 
 - **`headings`** – The list that will be populated with all HTML heading elements encountered in the document.
 
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def __init__(self, headings: list[Element]):
+    """Initialize the object.
+
+    Arguments:
+        headings: A list that will be populated with all HTML heading elements encountered in the document.
+    """
+    super().__init__()
+    self.headings = headings
+    """The list that will be populated with all HTML heading elements encountered in the document."""
+```
+
 ### headings
 
 ```python
@@ -1546,6 +2544,38 @@ Parameters:
 - #### **`md`**
 
   (`Markdown`) – A markdown.Markdown instance.
+
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802 (casing: parent method's name)
+    """Register the extension.
+
+    Arguments:
+        md: A `markdown.Markdown` instance.
+    """
+    md.registerExtension(self)
+    md.treeprocessors.register(
+        HeadingShiftingTreeprocessor(md, 0),
+        HeadingShiftingTreeprocessor.name,
+        priority=12,
+    )
+    md.treeprocessors.register(
+        IdPrependingTreeprocessor(md, ""),
+        IdPrependingTreeprocessor.name,
+        priority=4,  # Right after 'toc' (needed because that extension adds ids to headers).
+    )
+    md.treeprocessors.register(
+        _HeadingReportingTreeprocessor(md, self.headings),
+        _HeadingReportingTreeprocessor.name,
+        priority=1,  # Close to the end.
+    )
+    md.treeprocessors.register(
+        ParagraphStrippingTreeprocessor(md),
+        ParagraphStrippingTreeprocessor.name,
+        priority=0.99,  # Close to the end.
+    )
+```
 
 ## MkdocstringsPlugin
 
@@ -1578,6 +2608,15 @@ Attributes:
 - **`inventory_enabled`** (`bool`) – Tell if the inventory is enabled or not.
 - **`on_env`** – Extra actions that need to happen after all Markdown-to-HTML page rendering.
 - **`plugin_enabled`** (`bool`) – Tell if the plugin is enabled or not.
+
+Source code in `src/mkdocstrings/_internal/plugin.py`
+
+```python
+def __init__(self) -> None:
+    """Initialize the object."""
+    super().__init__()
+    self._handlers: Handlers | None = None
+```
 
 ### css_filename
 
@@ -1664,6 +2703,21 @@ Returns:
 
 - `BaseHandler` – An instance of a subclass of BaseHandler.
 
+Source code in `src/mkdocstrings/_internal/plugin.py`
+
+```python
+def get_handler(self, handler_name: str) -> BaseHandler:
+    """Get a handler by its name. See [mkdocstrings.Handlers.get_handler][].
+
+    Arguments:
+        handler_name: The name of the handler.
+
+    Returns:
+        An instance of a subclass of [`BaseHandler`][mkdocstrings.BaseHandler].
+    """
+    return self.handlers.get_handler(handler_name)
+```
+
 ### on_config
 
 ```python
@@ -1686,6 +2740,72 @@ Returns:
 
 - `MkDocsConfig | None` – The modified config.
 
+Source code in `src/mkdocstrings/_internal/plugin.py`
+
+```python
+def on_config(self, config: MkDocsConfig) -> MkDocsConfig | None:
+    """Instantiate our Markdown extension.
+
+    Hook for the [`on_config` event](https://www.mkdocs.org/user-guide/plugins/#on_config).
+    In this hook, we instantiate our [`MkdocstringsExtension`][mkdocstrings.MkdocstringsExtension]
+    and add it to the list of Markdown extensions used by `mkdocs`.
+
+    We pass this plugin's configuration dictionary to the extension when instantiating it (it will need it
+    later when processing markdown to get handlers and their global configurations).
+
+    Arguments:
+        config: The MkDocs config object.
+
+    Returns:
+        The modified config.
+    """
+    if not self.plugin_enabled:
+        _logger.debug("Plugin is not enabled. Skipping.")
+        return config
+    _logger.debug("Adding extension to the list")
+
+    locale = self.config.locale or config.theme.get("language") or config.theme.get("locale") or "en"
+    locale = str(locale).replace("_", "-")
+
+    handlers = Handlers(
+        default=self.config.default_handler,
+        handlers_config=self.config.handlers,
+        theme=config.theme.name or os.path.dirname(config.theme.dirs[0]),
+        custom_templates=self.config.custom_templates,
+        mdx=config.markdown_extensions,
+        mdx_config=config.mdx_configs,
+        inventory_project=config.site_name,
+        inventory_version="0.0.0",  # TODO: Find a way to get actual version.
+        locale=locale,
+        tool_config=config,
+    )
+
+    handlers._download_inventories()
+
+    AutorefsPlugin.record_backlinks = True
+    autorefs: AutorefsPlugin
+    try:
+        # If autorefs plugin is explicitly enabled, just use it.
+        autorefs = config.plugins["autorefs"]  # type: ignore[assignment]
+        _logger.debug("Picked up existing autorefs instance %r", autorefs)
+    except KeyError:
+        # Otherwise, add a limited instance of it that acts only on what's added through `register_anchor`.
+        autorefs = AutorefsPlugin()
+        autorefs.config = AutorefsConfig()
+        autorefs.scan_toc = False
+        config.plugins["autorefs"] = autorefs
+        _logger.debug("Added a subdued autorefs instance %r", autorefs)
+
+    mkdocstrings_extension = MkdocstringsExtension(handlers, autorefs)
+    config.markdown_extensions.append(mkdocstrings_extension)  # type: ignore[arg-type]
+
+    config.extra_css.insert(0, self.css_filename)  # So that it has lower priority than user files.
+
+    self._autorefs = autorefs
+    self._handlers = handlers
+    return config
+```
+
 ### on_post_build
 
 ```python
@@ -1707,6 +2827,35 @@ Parameters:
 - #### **`**kwargs`**
 
   (`Any`, default: `{}` ) – Additional arguments passed by MkDocs.
+
+Source code in `src/mkdocstrings/_internal/plugin.py`
+
+```python
+def on_post_build(
+    self,
+    config: MkDocsConfig,  # noqa: ARG002
+    **kwargs: Any,  # noqa: ARG002
+) -> None:
+    """Teardown the handlers.
+
+    Hook for the [`on_post_build` event](https://www.mkdocs.org/user-guide/plugins/#on_post_build).
+    This hook is used to teardown all the handlers that were instantiated and cached during documentation buildup.
+
+    For example, a handler could open a subprocess in the background and keep it open
+    to feed it "autodoc" instructions and get back JSON data. If so, it should then close the subprocess at some point:
+    the proper place to do this is in the handler's `teardown` method, which is indirectly called by this hook.
+
+    Arguments:
+        config: The MkDocs config object.
+        **kwargs: Additional arguments passed by MkDocs.
+    """
+    if not self.plugin_enabled:
+        return
+
+    if self._handlers:
+        _logger.debug("Tearing handlers down")
+        self.handlers.teardown()
+```
 
 ## ParagraphStrippingTreeprocessor
 
@@ -1746,6 +2895,18 @@ run(root: Element) -> Element | None
 ```
 
 Unwrap the root element if it's a single `<p>` element.
+
+Source code in `src/mkdocstrings/_internal/handlers/rendering.py`
+
+```python
+def run(self, root: Element) -> Element | None:
+    """Unwrap the root element if it's a single `<p>` element."""
+    if self.strip and len(root) == 1 and root[0].tag == "p":
+        # Turn the single `<p>` element into the root element and inherit its tag name (it's significant!)
+        root[0].tag = root.tag
+        return root[0]
+    return None
+```
 
 ## PluginConfig
 
@@ -1862,6 +3023,27 @@ Attributes:
 - **`info`** – Log an INFO message.
 - **`warning`** – Log a WARNING message.
 
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def __init__(self, logger: LoggerAdapter):
+    """Initialize the object.
+
+    Arguments:
+        logger: A logger adapter.
+    """
+    self.debug = get_template_logger_function(logger.debug)
+    """Log a DEBUG message."""
+    self.info = get_template_logger_function(logger.info)
+    """Log an INFO message."""
+    self.warning = get_template_logger_function(logger.warning)
+    """Log a WARNING message."""
+    self.error = get_template_logger_function(logger.error)
+    """Log an ERROR message."""
+    self.critical = get_template_logger_function(logger.critical)
+    """Log a CRITICAL message."""
+```
+
 ### critical
 
 ```python
@@ -1932,6 +3114,26 @@ Returns:
 
 - `bool` – A boolean telling if any object of the iterable evaluated to True.
 
+Source code in `src/mkdocstrings/_internal/handlers/base.py`
+
+```python
+def do_any(seq: Sequence, attribute: str | None = None) -> bool:
+    """Check if at least one of the item in the sequence evaluates to true.
+
+    The `any` builtin as a filter for Jinja templates.
+
+    Arguments:
+        seq: An iterable object.
+        attribute: The attribute name to use on each object of the iterable.
+
+    Returns:
+        A boolean telling if any object of the iterable evaluated to True.
+    """
+    if attribute is None:
+        return any(seq)
+    return any(_[attribute] for _ in seq)
+```
+
 ## get_logger
 
 ```python
@@ -1949,6 +3151,22 @@ Parameters:
 Returns:
 
 - `LoggerAdapter` – A logger configured to work well in MkDocs.
+
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def get_logger(name: str) -> LoggerAdapter:
+    """Return a pre-configured logger.
+
+    Arguments:
+        name: The name to use with `logging.getLogger`.
+
+    Returns:
+        A logger configured to work well in MkDocs.
+    """
+    logger = logging.getLogger(f"mkdocs.plugins.{name}")
+    return LoggerAdapter(name.split(".", 1)[0], logger)
+```
 
 ## get_template_logger
 
@@ -1970,6 +3188,22 @@ Returns:
 
 - `TemplateLogger` – A template logger.
 
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def get_template_logger(handler_name: str | None = None) -> TemplateLogger:
+    """Return a logger usable in templates.
+
+    Parameters:
+        handler_name: The name of the handler.
+
+    Returns:
+        A template logger.
+    """
+    handler_name = handler_name or "base"
+    return TemplateLogger(get_logger(f"mkdocstrings_handlers.{handler_name}.templates"))
+```
+
 ## get_template_logger_function
 
 ```python
@@ -1990,6 +3224,37 @@ Returns:
 
 - `Callable` – A function.
 
+Source code in `src/mkdocstrings/_internal/loggers.py`
+
+```python
+def get_template_logger_function(logger_func: Callable) -> Callable:
+    """Create a wrapper function that automatically receives the Jinja template context.
+
+    Arguments:
+        logger_func: The logger function to use within the wrapper.
+
+    Returns:
+        A function.
+    """
+
+    @pass_context
+    def wrapper(context: Context, msg: str | None = None, *args: Any, **kwargs: Any) -> str:
+        """Log a message.
+
+        Arguments:
+            context: The template context, automatically provided by Jinja.
+            msg: The message to log.
+            **kwargs: Additional arguments passed to the logger function.
+
+        Returns:
+            An empty string.
+        """
+        logger_func(f"%s: {msg or 'Rendering'}", _Lazy(get_template_path, context), *args, **kwargs)
+        return ""
+
+    return wrapper
+```
+
 ## get_template_path
 
 ```python
@@ -2008,35 +3273,90 @@ Returns:
 
 - `str` – The relative path to the template.
 
-## extension
+Source code in `src/mkdocstrings/_internal/loggers.py`
 
-Deprecated. Import from `mkdocstrings` directly.
+```python
+def get_template_path(context: Context) -> str:
+    """Return the path to the template currently using the given context.
 
-## handlers
+    Arguments:
+        context: The template context.
 
-Deprecated. Import from `mkdocstrings` directly.
+    Returns:
+        The relative path to the template.
+    """
+    context_name: str = str(context.name)
+    filename = context.environment.get_template(context_name).filename
+    if filename:
+        for template_dir in TEMPLATES_DIRS:
+            with suppress(ValueError):
+                return str(Path(filename).relative_to(template_dir))
+        with suppress(ValueError):
+            return str(Path(filename).relative_to(Path.cwd()))
+        return filename
+    return context_name
+```
 
-Modules:
+## makeExtension
 
-- **`base`** – Deprecated. Import from mkdocstrings directly.
-- **`rendering`** – Deprecated. Import from mkdocstrings directly.
+```python
+makeExtension(
+    *,
+    default_handler: str | None = None,
+    inventory_project: str | None = None,
+    inventory_version: str | None = None,
+    handlers: dict[str, dict] | None = None,
+    custom_templates: str | None = None,
+    markdown_extensions: list[str | dict] | None = None,
+    locale: str | None = None,
+    config_file_path: str | None = None,
+) -> MkdocstringsExtension
+```
 
-### base
+Create the extension instance.
 
-Deprecated. Import from `mkdocstrings` directly.
+We only support this function being used by Zensical. Consider this function private API.
 
-### rendering
+Source code in `src/mkdocstrings/_internal/extension.py`
 
-Deprecated. Import from `mkdocstrings` directly.
+```python
+def makeExtension(  # noqa: N802
+    *,
+    default_handler: str | None = None,
+    inventory_project: str | None = None,
+    inventory_version: str | None = None,
+    handlers: dict[str, dict] | None = None,
+    custom_templates: str | None = None,
+    markdown_extensions: list[str | dict] | None = None,
+    locale: str | None = None,
+    config_file_path: str | None = None,
+) -> MkdocstringsExtension:
+    """Create the extension instance.
 
-## inventory
+    We only support this function being used by Zensical.
+    Consider this function private API.
+    """
+    mdx, mdx_config = _split_configs(markdown_extensions or [])
+    tool_config = _ToolConfig(config_file_path=config_file_path)
 
-Deprecated. Import from `mkdocstrings` directly.
+    handlers_instance = Handlers(
+        theme="material",
+        default=default_handler or _default_config["default_handler"],
+        inventory_project=inventory_project or "Project",
+        inventory_version=inventory_version or "0.0.0",
+        handlers_config=handlers or _default_config["handlers"],
+        custom_templates=custom_templates or _default_config["custom_templates"],
+        mdx=mdx,
+        mdx_config=mdx_config,
+        locale=locale or _default_config["locale"],
+        tool_config=tool_config,
+    )
 
-## loggers
+    handlers_instance._download_inventories()
 
-Deprecated. Import from `mkdocstrings` directly.
+    autorefs = AutorefsPlugin()
+    autorefs.config = AutorefsConfig()
+    autorefs.scan_toc = False
 
-## plugin
-
-Deprecated. Import from `mkdocstrings` directly.
+    return MkdocstringsExtension(handlers=handlers_instance, autorefs=autorefs)
+```
