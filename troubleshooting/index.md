@@ -43,7 +43,7 @@ A warning like this one:
 
 ## Some objects are not rendered (they do not appear in the generated docs)
 
-- Make sure the configuration options of the handler are correct. Check the documentation for [Handlers](../usage/handlers/) to see the available options for each handler.
+- Make sure the configuration options of the handler are correct. Check the documentation for [Handlers](https://mkdocstrings.github.io/usage/handlers/index.md) to see the available options for each handler.
 - Also make sure your documentation in your source code is formatted correctly. For Python code, check the [supported docstring styles](https://mkdocstrings.github.io/python/usage/#supported-docstrings-styles) page.
 - Re-run the Mkdocs command with `-v`, and carefully read any traceback.
 
@@ -103,13 +103,13 @@ This code will correctly reset the IDs for tabs on a same page.
 
 ## The generated documentation does not look good
 
-Please open an ticket on the [bugtracker](https://github.com/mkdocstrings/mkdocstrings) with a detailed explanation and screenshots of the bad-looking parts. Note that you can always [customize the look](../usage/theming/) of *mkdocstrings* blocks -- through both HTML and CSS.
+Please open an ticket on the [bugtracker](https://github.com/mkdocstrings/mkdocstrings) with a detailed explanation and screenshots of the bad-looking parts. Note that you can always [customize the look](https://mkdocstrings.github.io/usage/theming/index.md) of *mkdocstrings* blocks -- through both HTML and CSS.
 
 ## Warning: could not find cross-reference target
 
 New in version 0.15.
 
-Cross-linking used to include any Markdown heading, but now it's only for *mkdocstrings* identifiers by default. See [Cross-references to any Markdown heading](../usage/#cross-references-to-any-markdown-heading) to opt back in.
+Cross-linking used to include any Markdown heading, but now it's only for *mkdocstrings* identifiers by default. See [Cross-references to any Markdown heading](https://mkdocstrings.github.io/usage/#cross-references-to-any-markdown-heading) to opt back in.
 
 Make sure the referenced object is properly rendered: verify your configuration options.
 

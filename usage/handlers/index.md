@@ -151,7 +151,7 @@ Finally, it's possible to entirely omit templates, and tell *mkdocstrings* to us
 
 ```python
 from pathlib import Path
-from mkdocstrings.handlers.base import BaseHandler
+from mkdocstrings import BaseHandler
 
 
 class CobraHandler(BaseHandler):
@@ -198,7 +198,7 @@ docs/some_page.md
 
 Note
 
-This feature is intended for developers. If you are a user and want to customize how objects are rendered, see [Theming / Customization](../theming/#customization).
+This feature is intended for developers. If you are a user and want to customize how objects are rendered, see [Theming / Customization](https://mkdocstrings.github.io/usage/theming/#customization).
 
 Such extensions can register additional template folders that will be used when rendering collected data. Extensions are responsible for synchronizing with the handler itself so that it uses the additional templates.
 

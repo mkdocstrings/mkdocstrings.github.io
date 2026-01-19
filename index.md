@@ -87,4 +87,4 @@ See the [Usage](https://mkdocstrings.github.io/usage) section of the docs for mo
 
 ______________________________________________________________________
 
-*And 8 more private sponsor(s).*
+*And 7 more private sponsor(s).*

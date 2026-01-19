@@ -522,7 +522,7 @@ Parameters:
 
 - #### **`identifier`**
 
-  (`str`) – An identifier for which to collect data. For example, in Python, it would be 'mkdocstrings.handlers' to collect documentation about the handlers module. It can be anything that you can feed to the tool of your choice.
+  (`str`) – An identifier for which to collect data. For example, in Python, it would be 'mkdocstrings.BaseHandler' to collect documentation about the BaseHandler class. It can be anything that you can feed to the tool of your choice.
 
 - #### **`options`**
 
@@ -543,7 +543,7 @@ def collect(self, identifier: str, options: HandlerOptions) -> CollectorItem:
 
     Arguments:
         identifier: An identifier for which to collect data. For example, in Python,
-            it would be 'mkdocstrings.handlers' to collect documentation about the handlers module.
+            it would be 'mkdocstrings.BaseHandler' to collect documentation about the BaseHandler class.
             It can be anything that you can feed to the tool of your choice.
         options: The final configuration options.
 
@@ -1319,7 +1319,7 @@ get_handler(
 
 Get a handler thanks to its name.
 
-This function dynamically imports a module named "mkdocstrings.handlers.NAME", calls its `get_handler` method to get an instance of a handler, and caches it in dictionary. It means that during one run (for each reload when serving, or once when building), a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
+This function dynamically imports a module named "mkdocstrings_handlers.NAME", calls its `get_handler` method to get an instance of a handler, and caches it in dictionary. It means that during one run (for each reload when serving, or once when building), a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
 
 Parameters:
 
@@ -1341,7 +1341,7 @@ Source code in `src/mkdocstrings/_internal/handlers/base.py`
 def get_handler(self, name: str, handler_config: dict | None = None) -> BaseHandler:
     """Get a handler thanks to its name.
 
-    This function dynamically imports a module named "mkdocstrings.handlers.NAME", calls its
+    This function dynamically imports a module named "mkdocstrings_handlers.NAME", calls its
     `get_handler` method to get an instance of a handler, and caches it in dictionary.
     It means that during one run (for each reload when serving, or once when building),
     a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
@@ -2397,6 +2397,8 @@ def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, Any]
 MkdocstringsExtension(
     handlers: Handlers,
     autorefs: AutorefsPlugin,
+    *,
+    autorefs_extension: bool = False,
     **kwargs: Any,
 )
 ```
@@ -2417,6 +2419,10 @@ Parameters:
 
   (`AutorefsPlugin`) – The autorefs plugin instance.
 
+- ### **`autorefs_extension`**
+
+  (`bool`, default: `False` ) – Whether the autorefs extension must be registered.
+
 - ### **`**kwargs`**
 
   (`Any`, default: `{}` ) – Keyword arguments used by markdown.extensions.Extension.
@@ -2428,17 +2434,26 @@ Methods:
 Source code in `src/mkdocstrings/_internal/extension.py`
 
 ```python
-def __init__(self, handlers: Handlers, autorefs: AutorefsPlugin, **kwargs: Any) -> None:
+def __init__(
+    self,
+    handlers: Handlers,
+    autorefs: AutorefsPlugin,
+    *,
+    autorefs_extension: bool = False,
+    **kwargs: Any,
+) -> None:
     """Initialize the object.
 
     Arguments:
         handlers: The handlers container.
         autorefs: The autorefs plugin instance.
+        autorefs_extension: Whether the autorefs extension must be registered.
         **kwargs: Keyword arguments used by `markdown.extensions.Extension`.
     """
     super().__init__(**kwargs)
     self._handlers = handlers
     self._autorefs = autorefs
+    self._autorefs_extension = autorefs_extension
 ```
 
 ### extendMarkdown
@@ -2468,6 +2483,12 @@ def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802 (casing: parent me
     Arguments:
         md: A `markdown.Markdown` instance.
     """
+    md.registerExtension(self)
+
+    # Zensical integration: get the current page from the Zensical-specific preprocessor.
+    if "zensical_current_page" in md.preprocessors:
+        self._autorefs.current_page = md.preprocessors["zensical_current_page"]  # type: ignore[assignment]
+
     md.parser.blockprocessors.register(
         AutoDocProcessor(md, handlers=self._handlers, autorefs=self._autorefs),
         "mkdocstrings",
@@ -2483,6 +2504,9 @@ def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802 (casing: parent me
         "mkdocstrings_post_toc_labels",
         priority=4,  # Right after 'toc'.
     )
+
+    if self._autorefs_extension:
+        AutorefsExtension(self._autorefs).extendMarkdown(md)
 ```
 
 ## MkdocstringsInnerExtension
@@ -3339,6 +3363,17 @@ def makeExtension(  # noqa: N802
     mdx, mdx_config = _split_configs(markdown_extensions or [])
     tool_config = _ToolConfig(config_file_path=config_file_path)
 
+    autorefs = AutorefsPlugin()
+    autorefs.config = AutorefsConfig()
+    autorefs.config.resolve_closest = True
+    autorefs.config.link_titles = "auto"
+    autorefs.config.strip_title_tags = "auto"
+    autorefs.scan_toc = True
+    autorefs._link_titles = "external"
+    autorefs._strip_title_tags = False
+
+    mdx.append(AutorefsExtension(autorefs))
+
     handlers_instance = Handlers(
         theme="material",
         default=default_handler or _default_config["default_handler"],
@@ -3353,10 +3388,13 @@ def makeExtension(  # noqa: N802
     )
 
     handlers_instance._download_inventories()
+    register = autorefs.register_url
+    for identifier, url in handlers_instance._yield_inventory_items():
+        register(identifier, url)
 
-    autorefs = AutorefsPlugin()
-    autorefs.config = AutorefsConfig()
-    autorefs.scan_toc = False
-
-    return MkdocstringsExtension(handlers=handlers_instance, autorefs=autorefs)
+    return MkdocstringsExtension(
+        handlers=handlers_instance,
+        autorefs=autorefs,
+        autorefs_extension=True,
+    )
 ```

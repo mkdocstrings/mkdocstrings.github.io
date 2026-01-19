@@ -96,7 +96,7 @@ The above is equivalent to:
 *mkdocstrings* accepts a few top-level configuration options in `mkdocs.yml`:
 
 - `default_handler`: The handler that is used by default when no handler is specified.
-- `custom_templates`: The path to a directory containing custom templates. The path is relative to the MkDocs configuration file. See [Theming](theming/).
+- `custom_templates`: The path to a directory containing custom templates. The path is relative to the MkDocs configuration file. See [Theming](https://mkdocstrings.github.io/usage/theming/index.md).
 - `handlers`: The handlers' global configuration.
 - `enable_inventory`: Whether to enable inventory file generation. See [Cross-references to other projects / inventories](#cross-references-to-other-projects-inventories)
 - `locale`: The locale used for translations. See [Internationalization](#internationalization-i18n).
@@ -129,7 +129,7 @@ docs/some_page.md
       show_source: true
 ```
 
-Some handlers accept additional global configuration. Check the documentation for your handler of interest in [Handlers](handlers/).
+Some handlers accept additional global configuration. Check the documentation for your handler of interest in [Handlers](https://mkdocstrings.github.io/usage/handlers/index.md).
 
 ## Internationalization (I18N)
 

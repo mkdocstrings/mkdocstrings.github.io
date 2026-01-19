@@ -93,7 +93,7 @@ See the [Usage](https://mkdocstrings.github.io/usage) section of the docs for mo
 
 ______________________________________________________________________
 
-*And 8 more private sponsor(s).*
+*And 7 more private sponsor(s).*
 
 # Usage
 
@@ -193,7 +193,7 @@ The above is equivalent to:
 *mkdocstrings* accepts a few top-level configuration options in `mkdocs.yml`:
 
 - `default_handler`: The handler that is used by default when no handler is specified.
-- `custom_templates`: The path to a directory containing custom templates. The path is relative to the MkDocs configuration file. See [Theming](theming/).
+- `custom_templates`: The path to a directory containing custom templates. The path is relative to the MkDocs configuration file. See [Theming](https://mkdocstrings.github.io/usage/theming/index.md).
 - `handlers`: The handlers' global configuration.
 - `enable_inventory`: Whether to enable inventory file generation. See [Cross-references to other projects / inventories](#cross-references-to-other-projects-inventories)
 - `locale`: The locale used for translations. See [Internationalization](#internationalization-i18n).
@@ -226,7 +226,7 @@ docs/some_page.md
       show_source: true
 ```
 
-Some handlers accept additional global configuration. Check the documentation for your handler of interest in [Handlers](handlers/).
+Some handlers accept additional global configuration. Check the documentation for your handler of interest in [Handlers](https://mkdocstrings.github.io/usage/handlers/index.md).
 
 ## Internationalization (I18N)
 
@@ -576,7 +576,7 @@ Finally, it's possible to entirely omit templates, and tell *mkdocstrings* to us
 
 ```python
 from pathlib import Path
-from mkdocstrings.handlers.base import BaseHandler
+from mkdocstrings import BaseHandler
 
 
 class CobraHandler(BaseHandler):
@@ -623,7 +623,7 @@ docs/some_page.md
 
 Note
 
-This feature is intended for developers. If you are a user and want to customize how objects are rendered, see [Theming / Customization](../theming/#customization).
+This feature is intended for developers. If you are a user and want to customize how objects are rendered, see [Theming / Customization](https://mkdocstrings.github.io/usage/theming/#customization).
 
 Such extensions can register additional template folders that will be used when rendering collected data. Extensions are responsible for synchronizing with the handler itself so that it uses the additional templates.
 
@@ -1222,7 +1222,7 @@ A warning like this one:
 
 ## Some objects are not rendered (they do not appear in the generated docs)
 
-- Make sure the configuration options of the handler are correct. Check the documentation for [Handlers](../usage/handlers/) to see the available options for each handler.
+- Make sure the configuration options of the handler are correct. Check the documentation for [Handlers](https://mkdocstrings.github.io/usage/handlers/index.md) to see the available options for each handler.
 - Also make sure your documentation in your source code is formatted correctly. For Python code, check the [supported docstring styles](https://mkdocstrings.github.io/python/usage/#supported-docstrings-styles) page.
 - Re-run the Mkdocs command with `-v`, and carefully read any traceback.
 
@@ -1282,13 +1282,13 @@ This code will correctly reset the IDs for tabs on a same page.
 
 ## The generated documentation does not look good
 
-Please open an ticket on the [bugtracker](https://github.com/mkdocstrings/mkdocstrings) with a detailed explanation and screenshots of the bad-looking parts. Note that you can always [customize the look](../usage/theming/) of *mkdocstrings* blocks -- through both HTML and CSS.
+Please open an ticket on the [bugtracker](https://github.com/mkdocstrings/mkdocstrings) with a detailed explanation and screenshots of the bad-looking parts. Note that you can always [customize the look](https://mkdocstrings.github.io/usage/theming/index.md) of *mkdocstrings* blocks -- through both HTML and CSS.
 
 ## Warning: could not find cross-reference target
 
 New in version 0.15.
 
-Cross-linking used to include any Markdown heading, but now it's only for *mkdocstrings* identifiers by default. See [Cross-references to any Markdown heading](../usage/#cross-references-to-any-markdown-heading) to opt back in.
+Cross-linking used to include any Markdown heading, but now it's only for *mkdocstrings* identifiers by default. See [Cross-references to any Markdown heading](https://mkdocstrings.github.io/usage/#cross-references-to-any-markdown-heading) to opt back in.
 
 Make sure the referenced object is properly rendered: verify your configuration options.
 
@@ -1987,7 +1987,7 @@ Parameters:
 
 - #### **`identifier`**
 
-  (`str`) – An identifier for which to collect data. For example, in Python, it would be 'mkdocstrings.handlers' to collect documentation about the handlers module. It can be anything that you can feed to the tool of your choice.
+  (`str`) – An identifier for which to collect data. For example, in Python, it would be 'mkdocstrings.BaseHandler' to collect documentation about the BaseHandler class. It can be anything that you can feed to the tool of your choice.
 
 - #### **`options`**
 
@@ -2008,7 +2008,7 @@ def collect(self, identifier: str, options: HandlerOptions) -> CollectorItem:
 
     Arguments:
         identifier: An identifier for which to collect data. For example, in Python,
-            it would be 'mkdocstrings.handlers' to collect documentation about the handlers module.
+            it would be 'mkdocstrings.BaseHandler' to collect documentation about the BaseHandler class.
             It can be anything that you can feed to the tool of your choice.
         options: The final configuration options.
 
@@ -2784,7 +2784,7 @@ get_handler(
 
 Get a handler thanks to its name.
 
-This function dynamically imports a module named "mkdocstrings.handlers.NAME", calls its `get_handler` method to get an instance of a handler, and caches it in dictionary. It means that during one run (for each reload when serving, or once when building), a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
+This function dynamically imports a module named "mkdocstrings_handlers.NAME", calls its `get_handler` method to get an instance of a handler, and caches it in dictionary. It means that during one run (for each reload when serving, or once when building), a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
 
 Parameters:
 
@@ -2806,7 +2806,7 @@ Source code in `src/mkdocstrings/_internal/handlers/base.py`
 def get_handler(self, name: str, handler_config: dict | None = None) -> BaseHandler:
     """Get a handler thanks to its name.
 
-    This function dynamically imports a module named "mkdocstrings.handlers.NAME", calls its
+    This function dynamically imports a module named "mkdocstrings_handlers.NAME", calls its
     `get_handler` method to get an instance of a handler, and caches it in dictionary.
     It means that during one run (for each reload when serving, or once when building),
     a handler is instantiated only once, and reused for each "autodoc" instruction asking for it.
@@ -3862,6 +3862,8 @@ def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, Any]
 MkdocstringsExtension(
     handlers: Handlers,
     autorefs: AutorefsPlugin,
+    *,
+    autorefs_extension: bool = False,
     **kwargs: Any,
 )
 ```
@@ -3882,6 +3884,10 @@ Parameters:
 
   (`AutorefsPlugin`) – The autorefs plugin instance.
 
+- ### **`autorefs_extension`**
+
+  (`bool`, default: `False` ) – Whether the autorefs extension must be registered.
+
 - ### **`**kwargs`**
 
   (`Any`, default: `{}` ) – Keyword arguments used by markdown.extensions.Extension.
@@ -3893,17 +3899,26 @@ Methods:
 Source code in `src/mkdocstrings/_internal/extension.py`
 
 ```python
-def __init__(self, handlers: Handlers, autorefs: AutorefsPlugin, **kwargs: Any) -> None:
+def __init__(
+    self,
+    handlers: Handlers,
+    autorefs: AutorefsPlugin,
+    *,
+    autorefs_extension: bool = False,
+    **kwargs: Any,
+) -> None:
     """Initialize the object.
 
     Arguments:
         handlers: The handlers container.
         autorefs: The autorefs plugin instance.
+        autorefs_extension: Whether the autorefs extension must be registered.
         **kwargs: Keyword arguments used by `markdown.extensions.Extension`.
     """
     super().__init__(**kwargs)
     self._handlers = handlers
     self._autorefs = autorefs
+    self._autorefs_extension = autorefs_extension
 ```
 
 ### extendMarkdown
@@ -3933,6 +3948,12 @@ def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802 (casing: parent me
     Arguments:
         md: A `markdown.Markdown` instance.
     """
+    md.registerExtension(self)
+
+    # Zensical integration: get the current page from the Zensical-specific preprocessor.
+    if "zensical_current_page" in md.preprocessors:
+        self._autorefs.current_page = md.preprocessors["zensical_current_page"]  # type: ignore[assignment]
+
     md.parser.blockprocessors.register(
         AutoDocProcessor(md, handlers=self._handlers, autorefs=self._autorefs),
         "mkdocstrings",
@@ -3948,6 +3969,9 @@ def extendMarkdown(self, md: Markdown) -> None:  # noqa: N802 (casing: parent me
         "mkdocstrings_post_toc_labels",
         priority=4,  # Right after 'toc'.
     )
+
+    if self._autorefs_extension:
+        AutorefsExtension(self._autorefs).extendMarkdown(md)
 ```
 
 ## MkdocstringsInnerExtension
@@ -4804,6 +4828,17 @@ def makeExtension(  # noqa: N802
     mdx, mdx_config = _split_configs(markdown_extensions or [])
     tool_config = _ToolConfig(config_file_path=config_file_path)
 
+    autorefs = AutorefsPlugin()
+    autorefs.config = AutorefsConfig()
+    autorefs.config.resolve_closest = True
+    autorefs.config.link_titles = "auto"
+    autorefs.config.strip_title_tags = "auto"
+    autorefs.scan_toc = True
+    autorefs._link_titles = "external"
+    autorefs._strip_title_tags = False
+
+    mdx.append(AutorefsExtension(autorefs))
+
     handlers_instance = Handlers(
         theme="material",
         default=default_handler or _default_config["default_handler"],
@@ -4818,10 +4853,13 @@ def makeExtension(  # noqa: N802
     )
 
     handlers_instance._download_inventories()
+    register = autorefs.register_url
+    for identifier, url in handlers_instance._yield_inventory_items():
+        register(identifier, url)
 
-    autorefs = AutorefsPlugin()
-    autorefs.config = AutorefsConfig()
-    autorefs.scan_toc = False
-
-    return MkdocstringsExtension(handlers=handlers_instance, autorefs=autorefs)
+    return MkdocstringsExtension(
+        handlers=handlers_instance,
+        autorefs=autorefs,
+        autorefs_extension=True,
+    )
 ```
